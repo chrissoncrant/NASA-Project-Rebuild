@@ -6,4 +6,3 @@ My intention for this project is to rebuild a project from the Zero to Mastery's
 
 While going through the project from scratch I will be doing my best to document the journey and the thought processes in this README. 
 
-
