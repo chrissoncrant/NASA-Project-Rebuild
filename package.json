@@ -1,0 +1,22 @@
+{
+  "name": "nasa-project",
+  "version": "1.0.0",
+  "description": "Rebuilding NASA project from ZTM course",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "server": "npm run watch --prefix server",
+    "client": "npm run start --prefix client"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrissoncrant/NASA-Project-Rebuild.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chrissoncrant/NASA-Project-Rebuild/issues"
+  },
+  "homepage": "https://github.com/chrissoncrant/NASA-Project-Rebuild#readme"
+}
