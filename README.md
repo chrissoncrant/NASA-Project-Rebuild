@@ -266,3 +266,81 @@ Within our server.js file a new function called serverStart is created. I am goi
 With this in place, no matter what the planets data will be loaded and ready to be accessed upon the server starting.
 
 The first path in the API has been created.
+
+## Set Up For Launches API
+### Launch Model Overview
+Approach: Top-Down. This approach makes a lot of sense here because the front-end reveals the properties that each individual launch item will need to have.
+
+#### Launch Item Properties
+- Launch Page Properties:
+	- Launch Date
+	- Mission Name
+	- Rocket Type
+	- Destination Exoplanet
+- Upcoming Page Properties:
+	- Number (flight number)
+	- Plus the properties from the Launch Page
+- History Page Properties:
+	- Customers
+	- No other new properties on this page
+
+From this analysis I can see that each launch item/object will need to have at least 6 properties. These are informational properties. I feel that one more informational property would be valuable and that is whether or not the mission was successful or not. This property will be a boolean property. 
+
+There will need to be at least one logical property as well which will serve the purpose of telling the front-end which launch items should be displayed on which page, either Upcoming or History.
+
+The logical property will be called Upcoming. This will be a boolean value. Launch items that have a true value for this property will be displayed on the Upcoming page.
+
+#### Launch API Methods
+The Launch API will be access by 3 request types:
+- POST - Launch page. POST requests are made to collections in general.
+- GET - Upcoming and History pages. This request will be made to the launches collection.
+- DELETE - Upcoming page. DELETE requests are generally made to items.
+
+## Launch Router and Controller Setup
+Created the launches route directory and within this created the launches.router.js and launches.controller.js files.
+
+The router was mounted within the app.js file and its route setup. The controller was imported into the router. 
+
+Set up the first controller to serve the GET request. This is a GET request made to an entire collection and so the status code 200 will be sent upon success. The request body will be sent in the form of JSON. 
+
+What will be passed into the .json() function is a call to a Data Access Function which will return an array of all launches. 
+
+## Launches Model Setup
+### Creating a Mock Launch Item
+At this stage a mock launch item was setup within the newly created launches.model.js file within the models directory.
+
+The mock launch includes all the properties that were discovered as essential in the analysis above.
+
+The key of each property of the launch item needs to match up with what the front-end is looking for.
+
+### Creating a Mock Launch Collection
+Each launch will be stored as an object. Each object has a flight number property and this can serve as an identifier for each individual launch. 
+
+But how should the launches be stored? Within an array? Within an object with the launch flight number set as the key?
+
+In this case the Map object is going to be used as it allows an easy way to set the flight number of launches as the key, making referencing, adding and deleting launches easy, especially with the in-built Map object methods. 
+
+With the mock launch set up and a new launches Map created, the launch was added to the Map by using the .set() Map method.
+
+### Data Access Function Setup
+The getAllLaunches Data Access Function was created. The return of this function involved processing the Map object. First the .values() Map method was called in order to give an Iterator object of all the values (i.e. the individual launch objects) associated with each key. Then Array.from() was used to create an array from these values.
+
+The processing occurred within the model so that when the Data Access Function is called within the controller, the data itself will be in a form that can be converted into JSON. This is another way of separating concerns, keeping all data manipulation within the model’s Data Access function.
+
+The Data Access Function was exported and imported into the controller and utilized within the first controller method, which is called in the corresponding router.
+
+### Postman Testing
+With everything in place, it was time to test in Postman. 
+
+Tests pass! Time to connect to front end.
+
+## Connecting Launches GET Request to Front-End
+This was just a matter of setting up another fetch request in the request.js file in our front-end. The endpoint is ‘/launches’.
+
+For this request, there was one more step, which was to sort our launches by the flight number and return this sorted array.
+
+After setting this up the Upcoming page is now displaying the mock launches.
+
+Time to set up our POST request!
+
+## Set Up of Router and Controller for Launches POST Requests
