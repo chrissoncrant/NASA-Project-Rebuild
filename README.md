@@ -1,6 +1,24 @@
 # NASA-Project-Rebuild
 Rebuilding NASA project from ZTM course
 
+## Table of Contents
+[[/Intention]]
+[[/NASA Website Overview]]
+[[/The Project Mission]]
+[[/Tools and Apps Used]]
+[[/Phase One: Project Setup]]
+	[[/Project Architecture\/Diagram]]
+	[[/Project Philosophies]]
+	[[/Setting up remote and local repo]]
+	[[/Initial Front-End Inspection]]
+	[[/Project Folder Structure]]
+[[/Phase Two: Server and App Setup]]
+	[[/server.js and app.js Setup]]
+[[/Phase Three: Building our First Endpoint]]
+	[[/Deciding Where To Start]]
+	[[/Adding Global Scripts]]
+	[[/Planets Model]]
+
 ## Intention
 My intention for this project is to rebuild a project from the Zero to Mastery’s Complete NodeJS Developer course. I will be doing this in order to practice what I have learned in order to aid in my retention of the information and skills. 
 
@@ -18,20 +36,23 @@ I will be using NodeJS and MongoDB to setup a functioning API that will accompli
 3. Abort Launches
 4. View Previous Launches
 
-## Tools and Apps Used:
+## Tools and Apps Used
 React/Create React App
 ARWES Framework
 Git Version Control with Git Hub
 VSCode code editor
 Node.js
-- Modules:
-	- http (server)
-	- file system (planets model)
-	- path (planets model)
-NPM packages
-* Express (npm package)
-* nodemon (npm package)
-* csv-parse (npm package)
+	- Core Modules:
+		- http (server)
+		- file system (planets model)
+		- path (planets model)
+	- NPM packages
+		* Express (npm package)
+			* Middleware:
+				- express.json()
+		* nodemon (npm package)
+		* csv-parse (npm package)
+Postman - testing APIs
 
 
 
@@ -43,15 +64,6 @@ Using Figma to create a project diagram. This will be an overview of the project
 The MVC design pattern will be used for this project with a focus on increasing cohesion and decreasing coupling. 
 
 The API will be following RESTful standards.
-
-### Setting up remote and local repo
-* Created new repo in GitHub.
-* Cloned the repo into local repository.
-* Gathered the front-end files and imported them into the project in a directory labelled “client” that I created. Note: The front-end was built using React and the Create React App package. It’s design (visual and audio) utilize the ARWES library.
-* Set up the .gitignore file before running “npm install”, making sure to add the ‘node_modules’ directory to this, then ran “npm install” within the client folder.
-* Checked out the scripts in the package.json file:
-	* Create React App automatically set up several scripts, the most useful one at the moment is the “start” script which opens up the front-end using port 3000 on the local host.
-* Examining the front-end to see what will be required of the API.
 
 ### Initial Front-End Inspection
 Consists of 3 pages: Launch, Upcoming, History
@@ -96,43 +108,6 @@ The models directory will contain the individual model files. These will not be 
 For the NPM packages, both the client and the server directories will have their own package.json files. All npm packages will be installed in either the client or the server folders.
 
 The main project folder will have a global package.json file for writing global scripts.
-
-## Phase Two: Server and App Setup
-With the server.js and app.js files created, I ran ‘npm init’ and got the package.json file set up. Specifically, I updated the ‘name’, ‘description’, ‘main’ fields and I added a ’start’ script, which will allow me to start my server by running ‘npm run start’ in CLI.
-
-Next, I installed Express as we will be relying heavily upon this framework for building our backend.
-
-I then installed the nodemon tool as a development dependency so I won’t have to constantly restart the server when code is changed.
-
-I set up a script to start my server using nodemon.
-
-With all this in place I copied and pasted the .gitignore file from the ‘client’ directory into my ‘server’ directory and made a new git commit.
-
-### server.js and app.js Setup
-Just a very basic server setup at this point. The goal here is for this file to be solely dedicated to only server tasks. The server utilizes Node’s http module and imports the Express app from the app.js file.
-```
-const http = require('http');
-
-const app = require('./app');
-const PORT = process.env.PORT || 8000;
-const server = http.createServer(app);
-
-server.listen(PORT, () => console.log(`Server listening on port ${PORT}...`));
-```
-
-The front-end is currently set up to be opened on port 3000. I chose port 8000 for the back-end to avoid any conflicts during the initial stages of development. 
-
-The API will be utilizing Express. Express is one of the most widely used Node.js. frameworks. It helps us get a server set up quickly without having to reinvent certain wheels (routing, error handling, etc.) ourselves. There are also a lot of useful middleware that Express allows us to utilize. All the Express related code will be confined to the app.js file.
-
-The app.js file at this point is as simple as it gets. No middleware, no routes just yet.  
-```
-const express = require('express');
-const app = express();
-
-module.exports = app;
-```
- 
-With these two files in place, I tested the server using both the scripts I set up to verify the server is working, I then performed a git commit and pushed changes.
 
 ## Phase Three: Building our First Endpoint
 ### Deciding Where To Start
@@ -222,38 +197,42 @@ A listener for any errors was added.
 
 A listener for the ‘end’ event was added, which simply logged the length of the array. Out of the 9500+ planets 8 potentially habitable planets were found! Exciting stuff!
 
+The design philosophy for this project is to export all model data using Data Access Functions.
+
 ##### Note about the initial stage of models
 At this stage a database is not needed. This is the setup phase of the API, so currently all data will be stored within the memory of the server itself. This is fine at this stage. Once the API is working, then a decision will be made in regards to what type of database will best serve the purpose of this project. 
 
-At this stage a new commit was made to GitHub
+### Quick Note on Building Strategy
+I feel it useful to point out that the creation of this specific endpoint is flowing in a bottom-up manner. I have started with getting the data source in place, then moving up from here to the controller, then the router, then to the Express app.js file, to our server.js, which will ultimately serve it to our front-end. 
 
-Here’s the what the planets.model.js file looks like at this point:
-```
-const fs = require('fs');
-const path = require('path');
+There are many ways to go about setting up an API. Other routes in this project will be built using a top-down approach for the sake of practice. I find that the more ways I do something the more familiar I get with the process. this makes sense to me as different angles of approach reveal different sides.
 
-const { parse } = require('csv-parse');
+###  The Planets Controller
+Now it is time to build the controller for the planets model. 
 
-const planets = [];
+#### Controller Philosophy
+This is where it is useful to think about separation of concerns in order to keep the MVC design pattern intact and as flexible and understandable as possible. 
 
-function isHabitablePlanet(planet) {
-    return planet.koi_disposition === 'CONFIRMED' && planet.koi_insol > 0.36 && planet.koi_insol < 1.11 && planet.koi_prad < 1.6
-}
+My current understanding of the controller is this: Its main job has to do with receiving requests from the front-end, validating them if necessary, working with the model to create, read, update or delete data, and delivering a useful response to the front-end.
 
-fs.createReadStream(path.join(__dirname, '..', '..', 'data', 'kepler_data.csv'))
-    .pipe(parse({
-        comment: '#',
-        columns: true
-    }))
-    .on('data', planet => {
-        if (isHabitablePlanet(planet)) {
-            planets.push(planet);
-        }
-    })
-    .on('error', err => {
-        console.log('Error received', err);
-    })
-    .on('end', () => {
-        console.log(`${planets.length} habitable planets found!`);
-    })
-```
+Providing a useful response is crucial. Even if the response is unable to deliver what is desired, a response can still be useful based on the information contained in said response. Much of this usefulness comes in the form of status codes and the body of the response itself.
+
+#### RESTful Aside
+
+Because RESTful API standards are being used, responses (and requests) will be tailored accordingly. A useful resource can be found here: [HTTP Methods for RESTful Services](https://www.restapitutorial.com/lessons/httpmethods.html)
+
+With RESTful APIs requests are made to endpoints that are associated with collections or items within collections. 
+
+How information is passed back and forth between the front-end and the back-end will be in the form of JSON.
+
+This leads to a useful piece of middleware which has been added to the app.js file. It is the express.json() middleware and it works to convert received JSON into Javascript objects. 
+
+#### Analysis of Planets Controller
+
+The planets controller will be receiving a GET request. The front-end makes this request during the initial loading of the page in order to populate the selection element in the form. The controller will be passing along the data from the planets model.
+
+#### Planets Endpoint 
+
+The controller and the router were set up and the router was mounted into the app.js file.
+
+Postman was used to test the API GET request. All is working on the back-end. Now it is time to connect this to the front-end. 
