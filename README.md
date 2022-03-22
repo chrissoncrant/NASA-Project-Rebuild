@@ -1,24 +1,6 @@
 # NASA-Project-Rebuild
 Rebuilding NASA project from ZTM course
 
-## Table of Contents
-[[/Intention]]
-[[/NASA Website Overview]]
-[[/The Project Mission]]
-[[/Tools and Apps Used]]
-[[/Phase One: Project Setup]]
-	[[/Project Architecture\/Diagram]]
-	[[/Project Philosophies]]
-	[[/Setting up remote and local repo]]
-	[[/Initial Front-End Inspection]]
-	[[/Project Folder Structure]]
-[[/Phase Two: Server and App Setup]]
-	[[/server.js and app.js Setup]]
-[[/Phase Three: Building our First Endpoint]]
-	[[/Deciding Where To Start]]
-	[[/Adding Global Scripts]]
-	[[/Planets Model]]
-
 ## Intention
 My intention for this project is to rebuild a project from the Zero to Mastery’s Complete NodeJS Developer course. I will be doing this in order to practice what I have learned in order to aid in my retention of the information and skills. 
 
@@ -47,16 +29,18 @@ Node.js
 		- file system (planets model)
 		- path (planets model)
 	- NPM packages
-		* Express (npm package)
+		* Express
 			* Middleware:
 				- express.json()
-		* nodemon (npm package)
-		* csv-parse (npm package)
+				- cors (app.js)
+		* nodemon
+		* csv-parse (planets model)
+		* 
 Postman - testing APIs
 
 
 
-## Phase One: Project Setup
+## Project Setup
 ### Project Architecture/Diagram
 Using Figma to create a project diagram. This will be an overview of the project structure. This will grow as the project grows. Currently it consists of 3 elements: Web Browser, Web Application, Node API.
 
@@ -109,7 +93,7 @@ For the NPM packages, both the client and the server directories will have their
 
 The main project folder will have a global package.json file for writing global scripts.
 
-## Phase Three: Building our First Endpoint
+## Building the First Endpoint
 ### Deciding Where To Start
 At this point I am ready to begin building some routes and setting up the models. 
 
@@ -207,7 +191,7 @@ I feel it useful to point out that the creation of this specific endpoint is flo
 
 There are many ways to go about setting up an API. Other routes in this project will be built using a top-down approach for the sake of practice. I find that the more ways I do something the more familiar I get with the process. this makes sense to me as different angles of approach reveal different sides.
 
-###  The Planets Controller
+###  Planets Controller/Router Setup
 Now it is time to build the controller for the planets model. 
 
 #### Controller Philosophy
@@ -218,7 +202,6 @@ My current understanding of the controller is this: Its main job has to do with 
 Providing a useful response is crucial. Even if the response is unable to deliver what is desired, a response can still be useful based on the information contained in said response. Much of this usefulness comes in the form of status codes and the body of the response itself.
 
 #### RESTful Aside
-
 Because RESTful API standards are being used, responses (and requests) will be tailored accordingly. A useful resource can be found here: [HTTP Methods for RESTful Services](https://www.restapitutorial.com/lessons/httpmethods.html)
 
 With RESTful APIs requests are made to endpoints that are associated with collections or items within collections. 
@@ -228,11 +211,58 @@ How information is passed back and forth between the front-end and the back-end 
 This leads to a useful piece of middleware which has been added to the app.js file. It is the express.json() middleware and it works to convert received JSON into Javascript objects. 
 
 #### Analysis of Planets Controller
-
 The planets controller will be receiving a GET request. The front-end makes this request during the initial loading of the page in order to populate the selection element in the form. The controller will be passing along the data from the planets model.
 
 #### Planets Endpoint 
-
 The controller and the router were set up and the router was mounted into the app.js file.
 
 Postman was used to test the API GET request. All is working on the back-end. Now it is time to connect this to the front-end. 
+
+### Connecting the API to the Front-End
+The front end is utilizing React. React makes the request to the back end via the Fetch API. The function used to perform this fetch is called within a hook and the hook provides the data to the selection element. 
+
+The endpoint to the planets data is currently http://localhost:8000/planets
+
+For this to work the server will need to be opened first, followed by the front-end. The order matters because the server is supplying the front-end with the data it needs.
+
+To make this easier I created a new global script in the project directory’s package.json file. This script will start the server and then start the client. 
+```
+"watch": "npm run server & npm run client"
+```
+
+The key syntax here is the single ‘&’ symbol. This will run both the global server script and the client script that I have set up. The ‘&&’ would not work in this case as the server process will not end and so the client script would never be triggered. 
+
+#### Encounter with Same Origin Policy and Using CORS
+Upon running the new script an issue is encountered. The planets data is not loading in. The issue is not with the fetch request (or is it?) or the front-end code. The back-end is working, as confirmed by Postman. 
+
+Checking the site’s console the issue is revealed. Right now the front-end is loading on port 3000 and the fetch request is being made to the back-end which is running on port 8000. This fetch request is violating the Same Origin Policy and thus the data is not being provided. 
+
+An ‘origin’ is made up of the protocol (in this case it’s HTTP), the url (localhost) and the port (3000 for the front-end, 8000 for the back-end). If any one of these is different then the origin is not the same. This is why the request by the front to the back-end is being rejected.
+
+This is not a bad thing. This is actually a very good thing when it comes to data privacy and security. However in this case I know that the origin the request is being made from is legitimate. This is where Cross-Origin Resource Sharing (CORS) comes into play.
+
+#### CORS to the Rescue
+CORS allows us to whitelist certain origins, which allows those different origins to access our back-end API. 
+
+There are many ways to make this happen. In this instance, because we are using Node and Express we are going to leverage some middleware, namely the ‘cors’ middleware. This will be installed as a project dependency within our server.
+
+The ‘cors’ middleware will be imported into our app.js file at the top of the middleware flow. An object is passed into the cors function indicating the origin that is allowed access to our data, in this case it’s ‘http://localhost:3000'
+
+With this in place our front-end now has access to our planets data. 
+
+### Loading Data on Startup
+Right now our planets data is loading just fine, however a good practice is to set up any potentially time-consuming and asynchronous data to be loaded prior to the server coming online. 
+
+This ensures that the front-end will have access to the data it needs upon the page loading. 
+
+To do this some adjustments need to be made to the planets model. 
+
+Specifically the fs.createReadStream process will be wrapped in a Promise object. This promise will be returned by a new function called loadPlanetsData.
+
+This new function is exported and imported into our server.js file.
+
+Within our server.js file a new function called serverStart is created. I am going to work with the async-await syntax and so this function is async. The server.listen() function is moved into the body of this function and is called after awaiting the result of loadPlanetsData.
+
+With this in place, no matter what the planets data will be loaded and ready to be accessed upon the server starting.
+
+The first path in the API has been created.
