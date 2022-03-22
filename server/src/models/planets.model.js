@@ -25,3 +25,9 @@ fs.createReadStream(path.join(__dirname, '..', '..', 'data', 'kepler_data.csv'))
     .on('end', () => {
         console.log(`${planets.length} habitable planets found!`);
     })
+
+function getHabitablePlanets() {
+    return planets;
+}
+
+    module.exports = getHabitablePlanets;
