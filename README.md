@@ -413,3 +413,116 @@ With this the isNaN() method can be used. The launch date value will be passed i
 
 ##### Valid Time Frame
 The date input needs to give at least four days for the launch to be set up and run. Is this amount of days super short? Yes, but the minimum amount of days can easily be adjusted. The point is I felt it necessary that same day launches cannot be scheduled. That would just be crazy.
+
+## Set Up POST Launches Data Access Function
+The Data Access Function will be called with a launch as an argument. At this point the launch will be incomplete and so part of the Data Access Functions job is to complete the launch by adding the remaining properties.
+
+These properties are:
+- Flight number
+- Customers
+- Upcoming
+- Success
+
+The trickiest one of these is the flight number, which will need to be incremented up by 1 with each added launch.
+
+To do this a flightNumber variable was created and this variable will get incremented each time a launch is added.
+
+To add all the properties to the launch object I used Object.assign() function. I then returned the updated launch as this will be sent within the response body.
+
+With this set up it was just a matter of exporting it, then importing it into the controller, plugging it into the httpAddNewLaunch controller and testing it with Postman.
+
+All tests passed! Time to connect to the front end.
+
+## Connecting Launches POST to Front-End
+### Setting up the request function
+I will be using the fetch within an async function. Whereas GET requests are pretty straight forward, POST requests require a bit more conditioning within the fetch request. 
+
+A second argument is required within the fetch indicating that the method is ‘post,’ that the content-type is ‘application/json,’ and sending the launch within the request body as JSON, and so JSON.stringify() is needed. 
+
+I know that, unless a network error occurs, the fetch API will return a response object that has an ‘ok’ property. The value of this will be used to trigger the submitLaunch hook to either run the getLaunches function in order to update the Upcoming page with the new launch and play the success sound, or play the failure alert. 
+
+In order to catch any issues with the network itself I utilized the try…catch syntax, which is standard when using async await. If the request is unable to be sent out do to an issue with my network then an error object will be returned with an ‘ok’ value of false. 
+
+```
+async function httpSubmitLaunch(launch) {
+  try {
+    return await fetch(`${API_URL}/launches`, {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(launch),
+    })
+  } catch(err) {
+    return {
+      ok: false
+    }
+  }
+}
+```
+
+All tests pass! The front-end is now able to send POST requests using the form and the Upcoming page updates with the new launch. 
+
+
+## HTTP Request Monitoring and Logs
+There is a useful piece of middleware called [morgan](https://www.npmjs.com/package/morgan) and now that the API is getting a bit complex it would be nice to monitor the requests coming into the server.
+
+This was installed as a project dependency within the server directory.
+
+The morgan middleware was added to the app.js file right after the cors middleware using the ‘combined’ format which provides standard Apache log output.
+
+Now I can see exactly what is going on with each request the server receives. Sweet!
+
+## Launches DELETE Request
+Within the Upcoming page there is a ‘X’ button that allows for aborting a launch.
+
+Clicking the button on the Upcoming page sends the http DELETE request to the specific item within the launches collection. The launch item is specified via a parameterized url to the launches endpoint. The parameter will be the flight number of the launch. Ex: http://localhost:8000/launches/100
+
+Aborted launches are not deleted from the database, but are removed from the Upcoming page and are displayed on the History page. Which page a launch is displayed within is solely dependent upon the ‘upcoming’ launch property’s value.
+
+When the back-end receives this request the controller will validate the existence of the launch, and then the Data Access Function within the launches.model.js file will update the values of the ‘upcoming’ and ‘success’ properties to false. The updated object will then be sent as JSON within the response body. 
+
+When the front-end receives the response object the ok property’s value will, upon ‘true’ value, trigger the getLaunches hook as well as the success sound, or, upon a ‘false’ value, trigger the failure sound.
+
+Following the RESTful standards, status codes will either be 200 for success or 404 if the launch cannot be found within the database.
+
+### Fetch Request Function
+Similar philosophy as the previous fetch request.
+
+The fetch is wrapped in an async function. The argument passed in is the flight number (labeled as ‘id’). This argument is the parameter within the fetch url. 
+
+Try…catch is used in order to catch any errors related to the network. Errors will return an object with ‘ok’ property set to false.
+
+```
+async function httpAbortLaunch(id) {
+  try {
+    return await fetch(`${API_URL}/launches/${id}`, {
+      method: 'delete', 
+    })
+  } catch(err) {
+    return {
+      ok: false,
+    }
+  }
+}
+```
+
+### Hook Setup
+When the abort button is clicked the abortLaunch hook function is called. This will call the httpAbortLaunch function passing into it the flight number of the launch to be aborted. 
+
+The response will be awaited and the ok property of this launch will determine the behavior to follow.
+
+## DELETE Back-End Setup
+Route for the delete request is created. This utilizes Express’ handy parameterized url syntax. This value also has to be converted into a number value. 
+
+Controller is created.
+
+2 Data Access Functions are created here. The first is a simple function that determines whether the launch exists or not. Its return is true or false. 
+
+The second function is the one that will update the ‘upcoming’ and ‘success’ property values to false and return the launch. Here the Object.assign() function will be used to do the updating. 
+
+Tested in Postman, all is working.
+
+Tested with front and back-ends running: Success!
+
+At this point, all endpoint have been set up. The API is working and is connected to the front-end successfully. 

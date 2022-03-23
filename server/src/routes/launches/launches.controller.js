@@ -1,10 +1,12 @@
 const { 
+    launchExists,
     getAllLaunches,
-    addNewLaunch
+    addNewLaunch,
+    abortLaunch,
  } = require("../../models/launches.model")
 
 function httpGetLaunches(req, res) {
-    res.status(200).json(getAllLaunches())
+    return res.status(200).json(getAllLaunches())
 }
 
 function httpAddNewLaunch(req, res) {
@@ -37,7 +39,21 @@ function httpAddNewLaunch(req, res) {
     return res.status(201).json(launch);
 }
 
+function httpAbortLaunch(req, res) {
+    const flightNumber = Number(req.params.id);
+    if (!launchExists(flightNumber)) {
+        return res.status(404).json({
+            error: 'Launch does not exist.'
+        })
+    }
+
+    let updatedLaunch = abortLaunch(flightNumber);
+
+    return res.status(200).json(updatedLaunch);
+}
+
 module.exports = {
     httpGetLaunches,
-    httpAddNewLaunch
+    httpAddNewLaunch,
+    httpAbortLaunch,
 }

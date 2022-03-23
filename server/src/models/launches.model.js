@@ -36,6 +36,10 @@ const launches = new Map();
 launches.set(launch1.flightNumber, launch1);
 launches.set(launch2.flightNumber, launch2);
 
+function launchExists(flightNumber) {
+    return launches.get(flightNumber);
+}
+
 function getAllLaunches() {
     return Array.from(launches.values());
 }
@@ -52,8 +56,19 @@ function addNewLaunch(launch) {
     return launch;
 }
 
+function abortLaunch(flightNumber) {
+    let updatedLaunch = launches.get(flightNumber);
+    Object.assign(updatedLaunch, {
+        upcoming: false,
+        success: false,
+    });
+
+    return updatedLaunch;
+}
 
 module.exports = {
+    launchExists,
     getAllLaunches,
     addNewLaunch,
+    abortLaunch,
 }
