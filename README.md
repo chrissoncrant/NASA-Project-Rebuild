@@ -268,7 +268,7 @@ With this in place, no matter what the planets data will be loaded and ready to 
 The first path in the API has been created.
 
 ## Set Up For Launches API
-### Launch Model Overview
+### Launch API Overview
 Approach: Top-Down. This approach makes a lot of sense here because the front-end reveals the properties that each individual launch item will need to have.
 
 #### Launch Item Properties
@@ -344,3 +344,72 @@ After setting this up the Upcoming page is now displaying the mock launches.
 Time to set up our POST request!
 
 ## Set Up of Router and Controller for Launches POST Requests
+Created the post router in the launches.router.js file. 
+
+The controller requires some thought. There must be some validation in this step to ensure the data for the launch object that is added to the launches model will be usable and valid. 
+
+It’s useful to know what properties will be provided within the request body by the front-end and which will be provided by the back-end.
+
+### Properties Analysis
+The properties provided by the back-end will not need to be validated. These properties are:
+- flight number
+	- This will be a number
+	- Will need to be incremented with each added launch
+- upcoming
+	- This is a boolean value
+	- Set to true by default as each launch scheduled via the Launch form must be in the future.
+- success
+	- This is a boolean value
+	- Will be set to true by default. 
+	- This property doesn’t have any current usage, but may be valuable in the future.
+- customers
+	- This will be an array of strings.
+	- These are essentially those companies and people who have skin in the game with each launch. 
+	- Default value will be [‘NASA’]
+
+The properties provided by the front-end:
+- Launch Date (launchDate)
+	- This needs to be a Date object
+	- The date object is already limited to future dates by the input though this could be validated on the backend as well. 
+	- This will need to be validated in some way.
+		- Validated for presence (it is required)
+		- Validated that it will yield a valid Date object
+- Mission Name (mission)
+	- This can be a string or a number
+	- Validated for its presence (it is required)
+- Rocket Type (rocket)
+	- This can be a string or a number
+	- Validated for its presence
+- Destination Exoplanet (target)
+	- This will be a string value
+	- The options are provided by the planets model so no validation is necessary
+
+### RESTful Analysis
+The request will be a POST request to a collection. According to RESTful standards ([HTTP Methods for RESTful Services](https://www.restapitutorial.com/lessons/httpmethods.html)):
+- Status codes:
+	- Success: 201
+	- Failure: 400
+
+### Validations
+#### Data presence
+The easiest validation is simply checking whether or not any of the inputs was left blank. This can be done with a simple if statement and if any of the properties are blank an error will be returned.
+
+#### Date Validation
+##### Valid Format
+After a user hits Submit the value entered for the date will be turned into a Date object. This Date object will be added to the object of properties that will ultimately be converted to JSON prior to sending in the request body.
+
+What happens to an invalid Date Object that is converted to JSON?
+```
+let date = "Hellooooo";
+date = new Date(date);
+JSON.stringify(date) //'null'
+```
+
+Notice that this ‘null’ value is a string. It is not the actual null value which would be filtered out by our presence validator. 
+
+The easiest way that comes to mind is to utilize the .valueOf() method for Date objects. This will give us a number that will be either a real number or NaN. 
+
+With this the isNaN() method can be used. The launch date value will be passed into this and if it is true then a 400 response would be returned, with an error message in an object. 
+
+##### Valid Time Frame
+The date input needs to give at least four days for the launch to be set up and run. Is this amount of days super short? Yes, but the minimum amount of days can easily be adjusted. The point is I felt it necessary that same day launches cannot be scheduled. That would just be crazy.
