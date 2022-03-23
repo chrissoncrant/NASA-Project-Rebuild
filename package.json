@@ -19,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/chrissoncrant/NASA-Project-Rebuild/issues"
   },
-  "homepage": "https://github.com/chrissoncrant/NASA-Project-Rebuild#readme"
+  "homepage": "https://github.com/chrissoncrant/NASA-Project-Rebuild#readme",
+  "dependencies": {
+    "morgan": "^1.10.0"
+  }
 }
