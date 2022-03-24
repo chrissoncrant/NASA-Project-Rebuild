@@ -11,6 +11,7 @@ function httpGetLaunches(req, res) {
 
 function httpAddNewLaunch(req, res) {
     const launch = req.body;
+    console.log(launch.launchDate);
     
     if (!launch.target || !launch.mission || !launch.rocket || !launch.target) {
         return res.status(400).json({
@@ -20,6 +21,13 @@ function httpAddNewLaunch(req, res) {
 
     let launchDate = new Date(launch.launchDate);
 
+    console.log("launchDate:", launchDate)
+
+    launchDate = launchDate.valueOf();
+
+    console.log("launchDate:", launchDate)
+
+
     if(isNaN(launchDate.valueOf())) {
         return res.status(400).json({
             error: "Invalid Date",
@@ -27,6 +35,8 @@ function httpAddNewLaunch(req, res) {
     }
 
     let fourDaysFromTodayInMs = Date.now() + 345600000;
+
+    console.log(Date.now())
 
     if(launchDate <= fourDaysFromTodayInMs) {
         return res.status(400).json({
