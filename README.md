@@ -27,18 +27,19 @@ Node.js
 	- Core Modules:
 		- http (server)
 		- file system (planets model)
-		- path (planets model)
+		- path (planets model, app.js)
 	- NPM packages
 		* Express
 			* Middleware:
 				- express.json()
+				- express.static()
 				- cors (app.js)
+				* morgan (app.js)
 		* nodemon
 		* csv-parse (planets model)
-		* 
+		* Jest
+		* Supertest
 Postman - testing APIs
-
-
 
 ## Project Setup
 ### Project Architecture/Diagram
@@ -526,3 +527,344 @@ Tested in Postman, all is working.
 Tested with front and back-ends running: Success!
 
 At this point, all endpoint have been set up. The API is working and is connected to the front-end successfully. 
+
+## Setting Up Production Front-End
+So far the front-end has been running on one server port and the back-end on a different one. Ideally we want both of these to be running on the same port. 
+
+The Create React App has a “build” script (located within the client’s package.json file) that will set up the production code of the front-end. This script will run processes that compress and optimize the front-end files. 
+
+An adjustment need to be made to the script to tell it that the location of this production code needs to exist within the server directory. To do this the “BUILD_PATH” parameter needs to be added to the “build” script. It looks like this:
+```
+"build": "BUILD_PATH=../server/public react-scripts build"
+```
+
+### Setting Up More Global Scripts
+With the “build” script in place I’ve created a global script called “deploy” within the project package.json. This script will run the “build” script first which will create the production package within our server file and then it will start the server itself. Note: The server will not be starting with nodemon, but will be starting in a production-ready manner. 
+
+The script looks like this:
+```
+"deploy": "npm run build --prefix client && npm run start --prefix server"
+```
+Note the ‘&&’ used. The server needs to wait until the production-ready files are in place. 
+
+Running this script adds all the production-ready files into a public directory within the server directory.
+
+What’s needed now is to tell our app to serve these files.
+
+### Serving the Static Files From app.js
+There are two functions that Express provides that will help use here.
+
+The first is the middleware express.static(). What is passed into this function is the file path to our public folder. This will tell the app to serve the index.html file within this folder, which will load the webpage. 
+
+Node’s path module was used here to set the absolute path to the public folder. 
+
+At this point, with the server open, navigating to our server’s local url loads the front-end site. All seems well here. Navigating into each page loads the pages, all the functionalities of the buttons work. We can add and remove launches just fine.
+
+However, navigating to any of the pages and then refreshing the page gives the “Cannot GET …” message. 
+
+This is because there aren’t any routes within our server set for these specific pages yet. 
+
+To set these up a new route is created using the universal symbol and within the callback body we use Express’ .sendFile() function to send the index.html file when a request is made. 
+
+What is passed into the .sendFile() function is the absolute path to the index.html file within the public directory. 
+
+Now when a page is refreshed there will be an established route within our app.js file to serve the appropriate file which points to the appropriate page. 
+
+Of course this now means any endpoint can be typed in, whether it exists or not, but what will be displayed on the users end is the site with no data loaded. This is not a big problem though as it is easy to navigate back to the useful pages using the navigation bar. This is a graceful failure.
+
+## Testing with Jest and Supertest
+I imagine that a perfected workflow would have this step come before deploying the site itself, but better late than never. 
+
+I have installed both Jest and Supertest as dev dependencies within the server directory. 
+
+The Jest testing suite will be used to provide further testing features of the API which can come in handy as the site grows in complexity.  [Globals · Jest](https://jestjs.io/docs/api)
+
+Jest is an excellent choice here as it provides in one package test runners, fixtures, assertions, and the ability to set up mock data. 
+
+SuperTest will be used within the Jest testing environment for sending out test HTTP requests against the API. It works asynchronously and so the async-await syntax will be utilized with it. [supertest - npm](https://www.npmjs.com/package/supertest)
+
+SuperTest works by opening what it calls an ‘ephemeral’ port using the app.js (so the app needs to be imported into the .test file)
+
+Both SuperTest and Jest have their syntaxes and functions that aid in he setting up of tests.
+
+### Jest Syntax
+The 3 main functions used with Jest are describe, test, and expect.
+
+Describe is used mainly for organizational purposes. It groups related tests together under a label, which is the first argument of the  `describe()` function. The second argument is a callback within which the individual tests are declared.
+
+Test is the main function for running tests in Jest. Each test tests for a specific end result. The first argument is the test name, the second argument is a callback within which the conditions of the test are set
+
+The expect function is used along with what are called ‘matchers’. Expect is what sets the condition and the matcher determines the result of the test. Ex: 
+expect(‘red’).toBe(‘red’) would result in a pass.
+expect(‘red’).toBe(‘blue’) would result in a failure.
+
+```
+describe('Test for matching color', () => {
+    let testColor = 'red';
+    test('Color is red', () => {
+        expect(testColor).toBe('red');
+    })
+})
+```
+
+### SuperTest Syntax
+The function that starts it all is the `request()` function. This opens that ephemeral port using the server that is passed into it as an argument.
+
+Once the server is open, the next function in the chain will specify request type with the path as the argument. Ex: `.get(‘/url’)`
+
+Next in the chain we can set headers, such as Content-Type, using `.set()`. By default the Content-Type type is set as JSON.
+
+SuperTest has its own `.expect()` function which works similarly to Jest’s. 
+
+### File Structure
+There are 2 standard ways of setting up files for testing with Jest.
+
+One is to add all tests within a directory called ‘__tests__’
+
+The other is to add the test files along with the files that are being tested. This is the way I’ve chosen
+
+Every test has the naming scheme similar to what I’ve already been using” name.test.js
+
+### Test Scripts
+For Jest to run its tests the script needs to be added to the package.json file.
+
+There are 2 scripts that will come in handy. The first is the standard script which will trigger Jest to run all tests once and will provide the results in the terminal.
+`”test”: “jest”`
+
+The second script will have Jest run automatically with each change in the code. There are 2 form of this, which one to use depends on whether the directory the tests live within is git initialized or not:
+- git initialized: `”test-watch”: “jest --watch”`
+- without git:  `”test-watch”: “jest --watchAll”`
+
+With these in place it made sense to set up a global script within the main project’s package.json: 
+`”test”: “npm run test-watch —prefix server”`
+
+### What To Test
+Jest is going to be used to test the Launches endpoint.
+
+The Launches endpoint has 3 request types to test: GET, POST, DELETE.
+
+### GET /launches Test
+This is the simplest test. It only needs to utilize SuperTest’s .expect() assertions. It will test the header for the correct Content-Type and the response status code.
+
+```
+describe('Test GET /launches', () => {
+    test('It should respond with 200 success', async () => {
+        const response = await request(app)
+            .get('/launches')
+            .expect('Content-Type', /json/)
+            .expect(200)
+    })
+})
+```
+
+### POST /launches Test
+This test is more involved. It not only requires testing for success, but also testing for errors. It is important that both success and errors give the desired response back to the front-end.
+
+This test requires the building of test cases. There needs to be a successful test case and there needs to be test cases that fail.
+
+Each test case is a launch object, as that is what will be sent to the server from the front-end. 
+
+For successful responses we expect the response header’s Content-Type to be JSON and the status code to be 201
+
+An additional SuperTest function needs to be used here, which is the `.send()` function and the argument of this will be our test cases.
+
+#### Success Test 
+For the successful test, a test case will be needed that will get by all the validation. However….
+
+#### Date Conditioning
+Because dates can be sent in all manner of different valid formats, it is important that our success test case verifies that the value of the date in the request is equal to the date in the response. 
+
+To do this we must compare the primitive values of the date objects from both the request and the response. Otherwise dates that are equal can show up as not equal resulting in falsely failed tests.
+
+To do this the request and the response dates’ primitive values are bound to two variables, and these are compared to one another using Jest’s expect() function, like so:
+
+```
+const requestDate = new Date(completeLaunch.launchDate).valueOf();
+
+const responseDate = new Date(response.body.launchDate).valueOf();
+
+expect(responseDate).toBe(requestDate);
+```
+
+#### Finishing Success Test
+Though the above may seem like overkill, it is best to be safe, rather than end up with data that is unusable. With this date safeguard for our test in place the success test can be finished. 
+
+#### Error Cases
+There are 3 error cases that tests needed to be set up for: Missing Data, Incorrect Date Format, Date Too Soon.
+
+For each of the tests above SuperTest’s .expect() function was used to verify content-type and the response status code.
+
+Jest’s expect() function was used along with the .toStrictEqual() matcher function to verify the correct response error object was returned.
+
+A test object for each of the cases was created and passed into the corresponding test. 
+
+### DELETE /launches test
+There will be 2 tests, one for the success case and one for the failure case. 
+
+#### Success Case
+The success case needs to respond with JSON, with 200 status code, and the response’s body needs to have the ‘upcoming’ and the ‘success’ property values updated to ‘false’.
+
+To verify the ‘upcoming’ and ‘success’ values were updated a test object was created to compare the response body to and the .toStrictEqual() Jest matcher function was used to test this.
+
+#### Failure Case
+The failure case needs to respond with a 404 status code and the response’s body needs to be the exact error object set within the controller.
+
+In order to test this the .delete() SuperTest function’s argument needed to pass in a url to an item that doesn’t exist. 
+
+To test for the error object Jest’s .toStrictEqual() was used once again.
+
+Because I expect the number of launches to always grow I used the item path ‘9999’, which is so large that it will take some time before the test will fail inappropriately. 
+
+## Optimizing Performance
+Currently there aren’t any requests that take a lot of time. However as the database grows and the number of requests received by the server increases, there may come a time when responses begin to lag resulting in users experiencing significant lag time. 
+
+To stay on top of this, Node’s Clustering capability is going to be utilized. 
+
+### What is Clustering
+Clustering is a way in which a Node server can be horizontally scaled. How it works is a Master process is used to create Worker processes. The Master’s job is simply to create the Workers, and the Workers handle the requests as they come in.
+
+The Cluster module is used in Node to accomplish this. Each Worker is running an exact copy of the script that the Master is called on. 
+
+Each Worker is able to handle separate requests coming into the same endpoint. The requests are handled via a load balancing process. There are different strategies for load balancing, but one of the most effective strategies is round-robin, which Node’s cluster modules use by default.
+
+With the round-robin load balancing strategy, each incoming request is handled by the next worker that’s available. 
+
+The number of workers that can be called to existence depends on the number of logical cores available in the computer that the server lives on. 
+
+### Theoretical Example of Why Clustering is Useful
+Let’s say there is a request that takes 10 seconds to complete and this request requires the running of CPU intensive blocking code.
+
+If one user were to send this request to the server it would take 10 seconds for that user to receive the response. 
+
+If there is only one instance of this server and another user a second later were to send the same request, the second user would have to wait 20 seconds; 10 seconds for the first user’s request to process, then 10 more seconds for the server to process the second user’s request.
+
+With 2 instances of the server then the second user would only have to wait 10 seconds. 
+
+Generally with servers built with Node the processes required by each request won’t be too CPU intensive and can finish within milliseconds, but if there are millions of users making requests at the same time, then those milliseconds add up quickly and the result is poor performance on the user’s end and the potential for locked servers.
+
+Clustering allows the server to handle multiple requests, optimizing the performance of the server. 
+
+### PM2 Package
+Node’s Cluster module is going to be utilized within the context of the very helpful tool called PM2. 
+
+PM2 is built on top of the Node’s Cluster module and provides a lot of useful features out of the box such as: launching/relaunching our cluster upon code change, providing monitoring capabilities, optimized and graceful restart processes, such as Zero Downtime Restarts.
+
+This will be installed within the server directory as a project dependency.
+
+PM2 is one of those packages where it is apreferable to install it globally as well, as this allows the advantage of using pm2’s commands in the CLI.
+
+Note: PM2 is mainly for when a project is in its production state. It is not used much during development, but getting it installed now is setting the project up for full-blown production more.
+
+#### Starting the Cluster with PM2
+In order to maximize the number of processes and have PM2 automatically detect the number of logical cores available the command to use is:
+```
+pm2 start server.js -i max
+```
+Note: This is done from the server/src directory. 
+
+#### Creating a Scripts to for Enabling PM2
+Within the server directory’s package.json this script is added:
+```
+"cluster": "pm2 start src/server.js -i max"
+```
+
+Within the main project directory a script is added that will start the server and then deploy the front-end:
+```
+"deploy-cluster": "npm run build --prefix client && npm run cluster --prefix server"
+```
+
+With all this in place the website is ready to efficiently handle multiple requests upon deploy.
+
+#### Strange Behavior
+However, when the site is deployed using the new global script some seemingly strange behavior will be encountered.
+
+If a new launch is saved, it will show in out launches list, but if we save a new launch and go back to the launches list, the launch we added previously will not be in the list. What the heck?
+
+This has to do with data persistence and the fact that right now our API is relying on the server’s memory for the state of each of the data objects. 
+
+The first launch added was added to the memory of that specific worker’s server process. The next launch was added to the memory of a different worker’s process. This is due to the round-robin load balancing. 
+
+Because the state of the data objects is stored within the server itself each instance of the server (i.e. each worker process) will have its own object state. These processes cannot share data between each other because they are essentially separate processes. They are not referencing and acting on the same object. 
+
+On top of all this, whenever the server is restarted (whether using pm2 or not) all the new launches added by our front-end are lost.
+
+What is needed is for our API to be stateless. Our data needs to live in a space where CRUD operations can occur and the data will persist. How can this happen?
+
+The answer: Databases.
+
+## Creating the Database
+### Very Brief Database Overview
+When it comes to databases there are 2 main types: SQL and NoSQL
+
+SQL and NoSQL are references to how queries are made against a database. 
+
+SQL is a standardized querying syntax that is used by many databases such as MySQL and Postgres.
+
+SQL is the querying syntax for databases that operate on the very popular referential model.
+
+NoSQL is a form of querying that varies depending on what database is used. Each NoSQL database will have its own querying syntax. NoSQL databases generally do not use the referential model and use other database models such as the document model.
+
+The choice of database to use for a project will depend on the project’s needs. There is no one right answer for databases. 
+
+### The Database for this Project
+
+For this project it has been determined that MongoDB will be used as its database. MongoDB is a NoSQL database and operates using the document model.
+
+For this project MongoDB was chosen for a number of reasons:
+1. It’s document model is based in JSON and its querying syntax is Javascript-based, which is in alignment with Node.js. A new syntax will not need to be used and this helps avoid the problem of [Object–relational impedance mismatch - Wikipedia](https://en.wikipedia.org/wiki/Object%E2%80%93relational_impedance_mismatch).
+2. Right now the data itself is not set in stone. This is a growing project and its data sets may change and evolve and MongoDB with its document model offers greater flexibility.
+3. MongoDB will work well for our need to scale horizontally. With that said SQL databases such as Postgres are fast becoming efficient at horizontal scaling.
+
+With our database selected it is time to move forward with setting up the current models to work with the database.
+
+### MongoDB Atlas
+MongoDB allows for setting up a cloud-based server and offers the ability to do this free which serves the purposes of this project just fine.
+
+After creating the new cluster and gathering the setup info (password to connect being the most important) it is time to connect to our database within our project.
+
+### Mongoose
+One of the advantage of SQL databases (which MongoDB is not) is the use of Schemas, which gives the data structure. 
+
+Out of the box, MongoDB is schema-less, however there is a useful utility that gives added benefits when using MongoDB and one of those is the creation of schemas.
+
+The utility is called Mongoose.
+
+This will be installed as a project dependency within the server directory.
+
+Mongoose will be used to perform CRUD operations on the MongoDB database and it works through MongoDB’s drivers.
+
+### Connecting our Project to MongoDB
+The first step in this process (after installing mongoose) is to connect mongoose to our database prior to our server starting. This is similar to what was done awhile back when the planets model database was set to load prior to server start. 
+
+In keeping with good project management and file structure, all the code related to connecting with mongoose will take place in its own file that will be imported into server.js. 
+
+Within the server/src directory a new directory called ‘services’ was created and within that directory a new file called ‘mongo.js’ was created.
+
+Within this file all the mongoose code that connects our project to the MongoDB will be written.
+
+While setting up the MongoDB server 2 pieces of info was provided:
+- the password for the user
+- the url to access the database
+
+Both of these pieces of info will be used to connect our project to MongoDB using mongoose.
+
+The mongoose functions used within this file are:
+```
+mongoose.connection.once('open', () => {...})
+mongoose.connection.on('error', () => {...})
+
+Note: the two functions below are asynchronous operations
+mongoose.connect(MONGO_URL)
+mongoose.disconnect()
+```
+
+The two functions are exported and imported into server.js and added to the startServer function like so:
+```
+async function startServer() {
+    await mongoConnect();
+    await loadPlanetsData();
+    server.listen(PORT, () => console.log(`Server listening on port ${PORT}...`));
+}
+```
+
+**!!!Note: It is important to add the mongo.js file to the .gitignore as this file contains the password for the mongoDB connection.**
