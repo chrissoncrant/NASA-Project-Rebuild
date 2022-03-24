@@ -1026,3 +1026,69 @@ async function httpGetAllPlanets(req, res) {
 ```
 
 At this point the server was run again and Postman was used to test the API endpoint. All is working!
+
+## Launches Model
+### Setting up the Launches Schema and Model
+First step was simply to create the launches.mongo.js file within the models directory
+
+Setting up the schema for the launches was relatively straightforward. Every property was required, some of the properties had default values set (customers, upcoming, success). 
+
+Model was exported in the same way the planets mongoose model was exported.
+
+### GET Data Access Function
+How the launches was working is within the model file two mock launches were created and added to a Map object. This Map object was used as our “database.”
+
+The Data Access Function returned this Map object. 
+
+This Map object will no longer be used once the Mongo DB is set up. 
+
+First step is to adjust the getAllLaunches function. To do this the .find() function is utilized and all documents are returned (so empty object for the first argument) and the fields are filtered to remove those same fields that were removed for the planets. Looks like this:
+```
+async function getAllLaunches() {
+    return await launchesDatabase.find({}, '-_id -__v');
+}
+```
+
+The Map object was set up with two launches to be initially stored within it using the Map methods of .set(). 
+
+I wanted to initialize the MongoDB as well. I could have just created a simple function that adds the launch object created in the launches model file, however when it comes time to set up the POST request I knew I would need a function that adds the launch in the same way.
+
+The launch created within the launches model would serve as a tester for this function which I called ‘saveLaunch.’
+
+I wanted to create an internal check/validation that would verify that the planet was indeed part of the planets database before adding the launch to the launches collection. 
+
+This required importing the planets mongoose model into the launches model file. With it imported the .findOne() function was used on the planets model. The reason the findOne() was used instead of .find() is because with findOne() what is returned is a null value if no matching document is found, whereas with .find() an empty array is returned. With the null value as a return a simpler check can be created. It looks like this:
+```
+async function saveLaunch(launch) {
+    const planetExists = await planetsDatabase.findOne({
+        keplerName: launch.target
+    });
+
+    if (!planetExists) {
+        throw Error('Planet is not valid!')
+    };
+
+    await launchesDatabase.updateOne({
+        flightNumber: launch.flightNumber
+    }, launch, {
+        upsert: true
+    })
+}
+```
+
+With this in place I tried running the function with the test launch object and an error was thrown. The validation worked!
+
+I updated the planet name so it was valid, ran the ‘npm run server’ script to start the server and tested in Postman to verify all was working in the API.
+
+After this I updated the controller to be async like so:
+```
+async function httpGetLaunches(req, res) {
+    return res.status(200).json(await getAllLaunches())
+}
+```
+
+I ran the ‘npm run watch’ script to verify all was showing up in the front-end.
+
+Once this was verified I committed the changes, then merged the branch to the main. 
+
+Time to move on to the POST request.
