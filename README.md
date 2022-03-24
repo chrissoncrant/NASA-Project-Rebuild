@@ -868,3 +868,161 @@ async function startServer() {
 ```
 
 **!!!Note: It is important to add the mongo.js file to the .gitignore as this file contains the password for the mongoDB connection.**
+
+### Model Setup Philosophy
+This process occurs in a step-by-step manner, changing the current model Data Access Functions piece by piece, verifying each step of the way that things are working as they need to be. 
+
+Making changes like this to code that is already working can invite errors and head scratching moments. To help with this, no old code will be deleted until the new code has proven itself to work. 
+
+Also this is the perfect time to utilize the branching feature within git. For each model and perhaps each request method a new branch will be created and merged back into the main when that step has proven to be working.
+
+### MongoDB and Mongoose Overview 
+MongoDB is a document model database. It works with collections and documents. Each collection contains at least one document. Each document is one instance of the data.
+
+A document in MongoDB is stored in the form of JSON. Actually it is turned into an even more efficient form called BSON, but that occurs on a layer of abstraction that our project will not have to interact with. 
+
+Mongoose is the tool that is going to help give the data structure within the MongoDB database. The structure comes from Mongoose Schemas and Models.
+
+It all starts with a schema. This sets the structure and requirements for each individual document. Every schema maps to an individual collection within the MongoDB.
+
+With a schema in place, models are compiled from the schema. All documents added to a collection is an instance of a specific model object. 
+
+Setting up schemas and models occurs within a separate file stored within the models directory. This is in keeping with the separating of concerns philosophy, but also keeps the project flexible for future changes regarding databases. 
+
+There will be a .mongo.js file for each of the current models, so planets.mongo.js and launches.mongo.js.
+
+### Planets Model
+#### Schema and Model
+When setting up a schema, it is important to determine what the data needs to look like.
+
+One of the reasons MongoDB was chosen is because currently what is thought to be needed may very well need to be added to or removed from. Referential, SQL-based databases have a very hard time with changing schemas, but with Mongoose and MongoDB changes to schemas won’t be so detrimental. 
+
+What is the purpose of the Planets Model in this project?
+To supply the front-end Launch page with planets that are good candidates to use as targets for future mission.
+
+How does the Planets Model accomplish this?
+By filtering the data from the kepler_data.csv file for potentially habitable planets and, currently, adding those planets to an array. 
+
+This array is returned in a Data Access Function that is called within the planets controller. 
+
+What data is currently crucial?
+As of now, only the planet name is used. 
+
+The planet array that is returned to the front-end consists of a lot more data than is actually used. 
+
+The planets schema will be set up to store only the required information. If this changes then that change can be added when the time comes. 
+
+Now is the time to set up the property naming scheme and data type. 
+
+The data type of the planet names will always be strings.
+
+The key of the property ought to follow the standard naming scheme of JSON objects which is camel case. 
+
+The schema  that was set for the Planets Model looks like this:
+```
+const planetsSchema = new mongoose.Schema({
+    keplerName: String,
+    required: true
+});
+```
+
+What must be considered at this point is how the front-end will be referencing this property. 
+
+Currently the front-end is setup to look for the property that has the key of “kepler_name,” as this is how it was sent to the front-end using the array. this needs to be updated to match the Planets Model’s schema. 
+
+After updating this, it is important to run the “npm run build” script within the client directory so this crucial change will update the public folder in the server directory. 
+
+The model will be what is exported from this file and imported into the planets.model.js file:
+```
+module.exports = mongoose.model('Planet', planetsSchema);
+```
+
+### Updating Planets Model
+Currently as the data is streamed and filtered, the planets that pass through the filter successfully get pushed into an array. It is this push method and the array that will be replaced.
+
+First  the planets model form the mongo.js file was imported into the Planets Model file.
+
+Next a new function was set up. This function utilized a mongoose method to add the planet as a document based on the planets model to the planets collection, which is be stored in the MongoDB.
+
+The method used is the .updateOne() method. The reason this is used is because it has an option called “upsert” and when this option is set to true how the function works is it first checks for the presence of the document in the collection. This is set by the first argument. If it is present it updates it via the second argument. If it is not present then it will add a new document based on the the second argument.
+
+The reason this method is chosen versus the .create() method has to do with our server’s clustering mechanism.
+
+If the .create() function was used then when the server is called to run using the clusters, each cluster would perform the planet filtering and therefore each planet that passes through the filter would be added as many times as there are clusters. This duplicate data is undesirable. Using the .updateOne() method allows this to be avoided.
+
+The function looks like this:
+```
+async function savePlanets(planet) {
+    try {
+        await planetsDatabase.updateOne({
+            keplerName: planet.kepler_name
+        }, {
+            keplerName: planet.kepler_name
+        }, {
+            upsert: true
+        });
+    } catch(err) {
+        console.log("Could not save the planet...", err);
+    };
+}
+```
+
+This function replaces the planets.push() method within the stream’s ’data’ event listener callback. It does not need the ‘await’ keyword in front of it when it is called here. When it is called, what is awaited is the completion of the .updateOne() function within the savePlanets function’s body. The listener callback looks like this:
+```
+.on('data', async planet => {
+    if (isHabitablePlanet(planet)) {
+        savePlanets(planet);
+    };
+})
+```
+
+Note: All functions that have to do with querying data are asynchronous and so the callbacks that utilize them need to be made async because the async-await syntax is used throughout the project. 
+
+The last thing to update is to console.log the number of planets found within the callback for the stream’s ‘end’ event listener.
+
+To do this mongoose’s model.find({}) query function is used. Note the empty object as the argument, which returns all documents within the planets collection. 
+
+To use this, the callback for the stream’s ‘end’ event listener is prepended with the ‘async’ keyword. A variable was created to store the result of awaiting the .find() function call. What is logged is the length of the resulting array bound to the new variable. It looks like this:
+```
+.on('end', async () => {
+    const planets = await planetsDatabase.find({});
+    console.log(`${planets.length} habitable planets found!`);
+    resolve();
+})
+```
+
+At this stage the server was run using the ‘npm run server’ command. After verifying all was working via the console.log message, the old code was deleted from the model.
+
+### Updating Planets Controller
+It was now time to update the controller. To do this the first step was to update the Data Access Function itself.
+
+The old Data Access Function looked like this:
+```
+function getHabitablePlanets() {
+    return planets;
+}
+```
+
+The new one looks like this:
+```
+async function getHabitablePlanets() {
+    return await planetsDatabase.find({}, '-_id -__v');
+}
+```
+Note: the second argument within the .find() function filters out the fields that MongoDB adds to the documents. These are not needed by the front-end and so these are filtered out. It is good practice, for security purposes, to only return the data that is needed.
+
+The old Controller function looked like this:
+```
+function httpGetAllPlanets(req, res) {
+    res.status(200).json(getHabitablePlanets())
+}
+```
+
+The new one, like this:
+```
+async function httpGetAllPlanets(req, res) {
+    res.status(200).json(await getHabitablePlanets())
+}
+```
+
+At this point the server was run again and Postman was used to test the API endpoint. All is working!
