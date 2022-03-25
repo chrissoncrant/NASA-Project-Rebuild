@@ -1,4 +1,5 @@
 const launchesDatabase = require('./launches.mongo');
+const { findOne } = require('./planets.mongo');
 const planetsDatabase = require('./planets.mongo');
 
 //Initial Launch:
@@ -53,22 +54,6 @@ async function addNewLaunch(launch) {
     return completedLaunch;
 }
 
-// function addNewLaunch(launch) {
-//     flightNumber++,
-//     Object.assign(launch, {
-//         flightNumber: flightNumber,
-//         customers: ['NASA', 'Chris'],
-//         upcoming: true,
-//         success: true
-//     })
-//     launches.set(launch.flightNumber, launch);
-//     return launch;
-// }
-
-// function launchExists(flightNumber) {
-//     return launches.get(flightNumber);
-// }
-
 async function getAllLaunches() {
     return await launchesDatabase.find({}, '-_id -__v');
 }
@@ -80,14 +65,21 @@ async function launchExists(flightNumber) {
     return flightExists;
 }
 
-function abortLaunch(flightNumber) {
-    let updatedLaunch = launches.get(flightNumber);
-    Object.assign(updatedLaunch, {
+async function abortLaunch(flightNumber) {
+    let updatedLaunch = await launchesDatabase.updateOne({
+        flightNumber: flightNumber
+    }, {
         upcoming: false,
-        success: false,
+        success: false
     });
-
-    return updatedLaunch;
+    if(!updatedLaunch.modifiedCount) {
+       return {
+           error: "Could not abort this launch."
+       };
+    } 
+    return {
+        message: "Launch aborted successfully."
+    };
 }
 
 module.exports = {

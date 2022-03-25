@@ -1198,3 +1198,52 @@ The easy fix: use the .findOneAndUpdate() function. All other arguments stay the
 With all this in place, and the server already running I tested the front-end and almost cried (okay, not really, but happiness was experienced) at the sound of success. 
 
 Time for the final method: DELETE.
+
+### DELETE Data Access Function
+Now it is time for the DELETE Data Access Function.
+
+The first step was to create a validator Data Access Function. This verifies that the launch exists in the database. Of course DELETE requests are initiated by clicking the button on the front-end, so the launch should definitely exist. But if somehow what’s showing on the front is out of sync with the back, this validator will stop the request from reaching the final abortLaunch function and will also send a useful and specific error message in the response body, along with a 404 Not Found status code. 
+
+This validator utilizes the .findOne() function to take advantage of the null return value if it doesn’t exist. The function looks like so:
+```
+async function launchExists(flightNumber) {
+    const flightExists = await launchesDatabase.findOne({
+        flightNumber: flightNumber
+    })
+    return flightExists;
+}
+```
+
+The validator will be called within the httpAbortLaunch function within the controller. This stays consistent with out separation of concerns as well. The function is defined in the model and called within the controller.
+
+With the validator in place the abortLaunch Data Access Function was declared. This utilizes the .updateOne() function, which filters the documents in the launches collection for the document that has the flight number, which definitely exists at this stage. Once found the ‘upcoming’ and ‘success’ properties’ values are updated to false. 
+
+The return of the .updateOne() function is stored in a variable called updatedLaunch. The return value itself is an object that has various properties about the process that occurred. One of these properties is called ‘modifiedCount.’ This count will either be 1, if the document was modified in the prescribed manner, or 0, if it was not.
+
+Using these values I set up a conditional to return an object that has a message of success if the modification occurred (so the value is 1), or an error if the modification did not occur and the launch could not be aborted. 
+
+The Data Access Function looks like this:
+```
+async function abortLaunch(flightNumber) {
+    let updatedLaunch = await launchesDatabase.updateOne({
+        flightNumber: flightNumber
+    }, {
+        upcoming: false,
+        success: false
+    });
+    if(!updatedLaunch.modifiedCount) {
+       return {
+           error: "Could not abort this launch."
+       };
+    } 
+    return {
+        message: "Launch aborted successfully."
+    };
+}
+``` 
+
+With that in place, the controller was made to be async and the server was started and test were performed using Postman and the front-end.
+
+All tests passed. The NASA project now has a fully functioning and persistent database. 
+
+Now to update the Jest tests so they can work with the database.
