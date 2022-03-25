@@ -32,46 +32,76 @@ const launch1 = {
 // launches.set(launch1.flightNumber, launch1);
 // launches.set(launch2.flightNumber, launch2);
 
-async function saveLaunch(launch) {
+async function checkValidPlanet(planetName) {
     const planetExists = await planetsDatabase.findOne({
-        keplerName: launch.target
+        keplerName: planetName
     });
+    return planetExists;
+}
 
-    if (!planetExists) {
-        throw Error('Planet is not valid!')
-    };
+async function getLatestFlightNumber() {
+    const latestLaunch = await launchesDatabase
+        .findOne({})
+        .sort('-flightNumber');
+    console.log(latestLaunch.flightNumber)
+    return latestLaunch.flightNumber;
+}
 
-    await launchesDatabase.updateOne({
+async function completeLaunch(launch) {
+    const flightNumber = await getLatestFlightNumber() + 1;
+    Object.assign(launch, {
+        flightNumber,
+        customers: ['NASA', 'Chris'],
+        upcoming: true,
+        success: true
+    })
+    console.log(launch)
+    return launch;
+}
+
+async function saveLaunch(launch) {
+    await launchesDatabase.findOneAndUpdate({
         flightNumber: launch.flightNumber
     }, launch, {
         upsert: true
     })
 }
 
-saveLaunch(launch1);
-
-function launchExists(flightNumber) {
-    return launches.get(flightNumber);
+async function addNewLaunch(launch) {
+    const validPlanet = await checkValidPlanet(launch.target);
+    if (!validPlanet) {
+        console.error('Not a valid planet.')
+    };
+    const completedLaunch = await completeLaunch(launch);
+    saveLaunch(completedLaunch);
+    return completedLaunch;
 }
 
-// function getAllLaunches() {
-//     return Array.from(launches.values());
+// function addNewLaunch(launch) {
+//     flightNumber++,
+//     Object.assign(launch, {
+//         flightNumber: flightNumber,
+//         customers: ['NASA', 'Chris'],
+//         upcoming: true,
+//         success: true
+//     })
+//     launches.set(launch.flightNumber, launch);
+//     return launch;
+// }
+
+// function launchExists(flightNumber) {
+//     return launches.get(flightNumber);
 // }
 
 async function getAllLaunches() {
     return await launchesDatabase.find({}, '-_id -__v');
 }
 
-function addNewLaunch(launch) {
-    flightNumber++,
-    Object.assign(launch, {
-        flightNumber: flightNumber,
-        customers: ['NASA', 'Chris'],
-        upcoming: true,
-        success: true
+async function launchExists(flightNumber) {
+    const flightExists = await launchesDatabase.findOne({
+        flightNumber: flightNumber
     })
-    launches.set(launch.flightNumber, launch);
-    return launch;
+    return flightExists;
 }
 
 function abortLaunch(flightNumber) {
