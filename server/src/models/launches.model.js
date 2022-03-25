@@ -1,8 +1,7 @@
 const launchesDatabase = require('./launches.mongo');
 const planetsDatabase = require('./planets.mongo');
 
-// let flightNumber = 100;
-
+//Initial Launch:
 const launch1 = {
     flightNumber: 100,
     launchDate: "12 December 2022",
@@ -13,24 +12,6 @@ const launch1 = {
     upcoming: true,
     success: true,
 }
-
-// flightNumber++;
-
-// const launch2 = {
-//     flightNumber: flightNumber,
-//     launchDate: "12 December 2022",
-//     mission: "Flight of the Bumblebee",
-//     rocket: "Istanbul",
-//     target: "Kepler-92 f",
-//     customers: ['NASA', 'Oz'],
-//     upcoming: true,
-//     success: true,
-// }
-
-// const launches = new Map();
-
-// launches.set(launch1.flightNumber, launch1);
-// launches.set(launch2.flightNumber, launch2);
 
 async function checkValidPlanet(planetName) {
     const planetExists = await planetsDatabase.findOne({
@@ -55,23 +36,18 @@ async function completeLaunch(launch) {
         upcoming: true,
         success: true
     })
-    console.log(launch)
     return launch;
 }
 
-async function saveLaunch(launch) {
+async function saveLaunch(completedLaunch) {
     await launchesDatabase.findOneAndUpdate({
-        flightNumber: launch.flightNumber
-    }, launch, {
+        flightNumber: completedLaunch.flightNumber
+    }, completedLaunch, {
         upsert: true
     })
 }
 
 async function addNewLaunch(launch) {
-    const validPlanet = await checkValidPlanet(launch.target);
-    if (!validPlanet) {
-        console.error('Not a valid planet.')
-    };
     const completedLaunch = await completeLaunch(launch);
     saveLaunch(completedLaunch);
     return completedLaunch;
@@ -115,8 +91,10 @@ function abortLaunch(flightNumber) {
 }
 
 module.exports = {
-    launchExists,
-    getAllLaunches,
+    checkValidPlanet,
     addNewLaunch,
+    getAllLaunches,
+    launchExists,
     abortLaunch,
 }
+

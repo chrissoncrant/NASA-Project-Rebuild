@@ -1,7 +1,8 @@
 const { 
-    launchExists,
-    getAllLaunches,
+    checkValidPlanet,
     addNewLaunch,
+    getAllLaunches,
+    launchExists,
     abortLaunch,
  } = require("../../models/launches.model")
 
@@ -9,7 +10,7 @@ async function httpGetLaunches(req, res) {
     return res.status(200).json(await getAllLaunches())
 }
 
-function httpAddNewLaunch(req, res) {
+async function httpAddNewLaunch(req, res) {
     const launch = req.body;
     console.log(launch.launchDate);
     
@@ -34,8 +35,16 @@ function httpAddNewLaunch(req, res) {
             error: "Invalid date. Launches need at least 4 days to get set up."
         })
     }
+
+    const planetExists = await checkValidPlanet(launch.target);
+
+    if (!planetExists) {
+        return res.status(400).json({
+            error: "This planet is not a valid exoplanet."
+        })
+    }
     
-    addNewLaunch(launch);
+    await addNewLaunch(launch);
 
     return res.status(201).json(launch);
 }

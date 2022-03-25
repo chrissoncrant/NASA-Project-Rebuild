@@ -940,7 +940,7 @@ module.exports = mongoose.model('Planet', planetsSchema);
 ### Updating Planets Model
 Currently as the data is streamed and filtered, the planets that pass through the filter successfully get pushed into an array. It is this push method and the array that will be replaced.
 
-First  the planets model form the mongo.js file was imported into the Planets Model file.
+First  the planets model from the mongo.js file was imported into the Planets Model file.
 
 Next a new function was set up. This function utilized a mongoose method to add the planet as a document based on the planets model to the planets collection, which is be stored in the MongoDB.
 
@@ -951,6 +951,7 @@ The reason this method is chosen versus the .create() method has to do with our 
 If the .create() function was used then when the server is called to run using the clusters, each cluster would perform the planet filtering and therefore each planet that passes through the filter would be added as many times as there are clusters. This duplicate data is undesirable. Using the .updateOne() method allows this to be avoided.
 
 The function looks like this:
+
 ```
 async function savePlanets(planet) {
     try {
@@ -966,6 +967,7 @@ async function savePlanets(planet) {
     };
 }
 ```
+([back to previous location](bear://x-callback-url/open-note?id=EE88B88D-ABEC-455F-BD23-A15A4A586F6F-700-00121137C9828DA1&header=*))
 
 This function replaces the planets.push() method within the stream’s ’data’ event listener callback. It does not need the ‘await’ keyword in front of it when it is called here. When it is called, what is awaited is the completion of the .updateOne() function within the savePlanets function’s body. The listener callback looks like this:
 ```
@@ -1036,59 +1038,163 @@ Setting up the schema for the launches was relatively straightforward. Every pro
 Model was exported in the same way the planets mongoose model was exported.
 
 ### GET Data Access Function
-How the launches was working is within the model file two mock launches were created and added to a Map object. This Map object was used as our “database.”
+How the launches was working is, within the model file, two mock launches were created and added to a Map object. This Map object was used as our “database.”
 
 The Data Access Function returned this Map object. 
 
 This Map object will no longer be used once the Mongo DB is set up. 
 
-First step is to adjust the getAllLaunches function. To do this the .find() function is utilized and all documents are returned (so empty object for the first argument) and the fields are filtered to remove those same fields that were removed for the planets. Looks like this:
+First step is to adjust the getAllLaunches function. To do this the .find({}) function is utilized and all documents are returned (hence empty object for the first argument of .find()) and the fields are filtered to remove those same fields that were removed for the planets. Looks like this:
 ```
 async function getAllLaunches() {
     return await launchesDatabase.find({}, '-_id -__v');
 }
 ```
 
-The Map object was set up with two launches to be initially stored within it using the Map methods of .set(). 
+The Map object was set up with two launches to be initially stored within it using the Map methods of .set(). I wanted to initialize the MongoDB as well. 
 
-I wanted to initialize the MongoDB as well. I could have just created a simple function that adds the launch object created in the launches model file, however when it comes time to set up the POST request I knew I would need a function that adds the launch in the same way.
+I could have just created a simple function that adds the launch object created in the launches model file, however when it comes time to set up the POST request I knew I would need a function that adds the launches anyways.
 
 The launch created within the launches model would serve as a tester for this function which I called ‘saveLaunch.’
 
-I wanted to create an internal check/validation that would verify that the planet was indeed part of the planets database before adding the launch to the launches collection. 
+The ‘saveLaunch’ function would take completed launches and add them as documents to the Launches collection in the database. This would be the last step.
 
-This required importing the planets mongoose model into the launches model file. With it imported the .findOne() function was used on the planets model. The reason the findOne() was used instead of .find() is because with findOne() what is returned is a null value if no matching document is found, whereas with .find() an empty array is returned. With the null value as a return a simpler check can be created. It looks like this:
-```
-async function saveLaunch(launch) {
-    const planetExists = await planetsDatabase.findOne({
-        keplerName: launch.target
-    });
+I set up the test launch object which had all the properties, both the properties set by the front-end and the additional properties added on the back-end. I ran the saveLuanches function with this test object as the argument and used both the console and Postman to verify the result was successful, and it was. 
 
-    if (!planetExists) {
-        throw Error('Planet is not valid!')
-    };
-
-    await launchesDatabase.updateOne({
-        flightNumber: launch.flightNumber
-    }, launch, {
-        upsert: true
-    })
-}
-```
-
-With this in place I tried running the function with the test launch object and an error was thrown. The validation worked!
-
-I updated the planet name so it was valid, ran the ‘npm run server’ script to start the server and tested in Postman to verify all was working in the API.
-
-After this I updated the controller to be async like so:
+After this I updated the controller in the launches.controller.js file to be async like so:
 ```
 async function httpGetLaunches(req, res) {
     return res.status(200).json(await getAllLaunches())
 }
 ```
 
-I ran the ‘npm run watch’ script to verify all was showing up in the front-end.
+I ran the ‘npm run server’ script from the project folder, to verify all was showing up in the front-end.
 
 Once this was verified I committed the changes, then merged the branch to the main. 
 
 Time to move on to the POST request.
+
+### POST Data Access Function
+I had the last part of the chain in place regarding adding launches to the data base, but there were still more links to set up in order to have a full POST data access function.
+
+I envisioned the chain like so:
+- Validate whether the planet exists within the planets database
+- complete the launch object
+- add the launch to the database (This is what I completed in the previous step)
+
+#### Validating the Planet
+I wanted to create an internal check/validation that would verify that the planet was indeed part of the planets database before adding the launch to the launches collection. 
+
+I don’t know how necessary this is as the planets that are available to select on the front-end are the ones present in the planets database, but for the sake of practice and for the sake of data legitimacy I created one. 
+
+This required importing the planets mongoose model into the launches model file. With it imported the .findOne() function was used on the planets model. The reason the findOne() was used instead of .find() is because with findOne() returns a null value if no matching document is found, whereas with .find() an empty array is returned. With the null value as a return a simpler check can be created. 
+
+I created a function specifically for this and set it up like so:
+```
+async function checkValidPlanet(planetName) {
+    const planetExists = await planetsDatabase.findOne({
+        keplerName: planetName
+    });
+    return planetExists;
+}
+```
+
+I utilized the console to verify that either the object was returned if it was present, or whether a null value was returned.  I did this by temporarily adding console.log(planetExists) prior to the return statement and calling the function within the model with valid and invalid arguments. 
+
+#### Complete Launch Object Function
+Just as with the planet validation, I decided to create a separate function that completes the launch object. This completed launch object would be passed as the argument into the saveLaunches function as the last step in the Data Access Function.
+
+As I started on this I quickly hit the first problem to solve: how to increment the flight number. 
+
+#### Incrementing the Flight Number
+SQL databases have simple syntax for doing this, but with MongoDB this is not the case. However, the problem was not too difficult to solve.
+
+I created another function that performed the specific task of retrieving the latest flight number. This function is naturally called getLatestFlightNumber.
+
+To do this I utilized mongoose’s findOne({}) function, with the empty object as the argument and chained onto this mongoose’s .sort() function. For the argument of the .sort() function I passed in the string ‘-flightNumber’, which tells mongoose to sort the collection by flight number and in descending order (this is where the ‘-‘ comes in). 
+
+Utilizing this in conjunction with the .findOne({}) function, what would be retrieved is the launch object that has the latest flight number. It was then simple to return the flight number of this object. This function looks like so:
+```
+async function getLatestFlightNumber() {
+    const latestLaunch = await launchesDatabase
+        .findOne({})
+        .sort('-flightNumber');
+    console.log(latestLaunch.flightNumber)
+    return latestLaunch.flightNumber;
+}
+```
+
+#### Completing the completeLaunch Function
+Now completing the completeLaunch function was straight forward. I created a variable which utilized the nifty getLatestLaunch function and added one to its return. I utilized the Object.assign() function to add the necessary properties to the launch object that would be passed into it and then returned that object. It looks like so:
+```
+async function completeLaunch(launch) {
+    const flightNumber = await getLatestFlightNumber() + 1;
+    Object.assign(launch, {
+        flightNumber,
+        customers: ['NASA', 'Chris'],
+        upcoming: true,
+        success: true
+    })
+    return launch;
+}
+``` 
+
+#### Determining How to Implement the Planet Validator
+With all the links in the chain completed, twas high time to declare the Data Access Function. Or so I thought…
+
+The first step was verifying the planet exists. I stored the value of the return of the planetExists function in a variable. I used a conditional to verify it exists. At first I set it up so if the planet was found to not be a planet within our database, then it would throw an Error object. However upon testing this, I realized it just broke the server. I didn’t like this. But this is how it looked:
+```
+const validPlanet = await checkValidPlanet(launch.target);
+if (!validPlanet) {
+    throw new Error('Not a valid planet.');
+};
+```
+
+I decided to remove this validation from the addNewLaunch data access function and exported it as data access function in its own right, then imported it into the controller and set up the validation there. Doing it this way means the server will not break if an invalid planet is entered in, plus it provides the error message on the front-end’s response. It looks like so:
+```
+const planetExists = await checkValidPlanet(launch.target);
+
+if (!planetExists) {
+    return res.status(400).json({
+        error: "This planet is not a valid exoplanet."
+    })
+}
+```
+
+I am not sure if this is the best way to deal with this. Reading here [Node Best Practices](https://github.com/goldbergyoni/nodebestpractices), it mentions how the best practice is the throw an Error object, but I don’t like the idea of the server breaking with an error. Doesn’t seem stable. This is an area that I still have some learning to do.
+
+#### Setting up the addNewLaunch Data Access Function
+Those moments above are fun to me. Making adjustments on the fly, learning how to be nimble, flexible, bending with the situation. This is also why I love coding, but I digress here…
+
+With the validator in what I feel is a better and more consistent position, twas high time to finish the addNewLaunch Data Access Controller function.
+
+At this point, by the time this function receives the launch I know all the properties within it will be valid and ready to pass into the completeLaunch function. So that’s what happens. That is step numero uno.
+
+I store the return of the completeLaunch function into the fantastically named completedLaunch variable, and this is passed into the saveLaunch function, then I return the completedLaunch so that this can be returned as json in the response body. It looks like so:
+```
+async function addNewLaunch(launch) {
+    const completedLaunch = await completeLaunch(launch);
+    saveLaunch(completedLaunch);
+    return completedLaunch;
+}
+```
+
+I updated the controller to be async by prepending ‘async’ to the function declaration (easy peasy) and I tested this bad boy in Postman. The failure tests were successful (loving how that sentence makes perfect sense here). But with the successful tests I noticed something interesting
+
+MongoDB added a property to the object. The property looks like so:
+```
+"$setOnInsert": {
+        "__v": 0
+    }
+```
+
+This may seem innocent enough, however I have learned that it is best to only show the data that is necessary. Having this property be visible within the response body could potentially leave the database vulnerable to hackers. How so? I don’t know, but best not to find out.
+
+##### *
+Digging deeper I found that this property is added when using the “upsert: true” option within the .updateOne() function, which is how the saveLaunches function is set up (see [here](bear://x-callback-url/open-note?id=EE88B88D-ABEC-455F-BD23-A15A4A586F6F-700-00121137C9828DA1&header=Updating%20Planets%20Model) and scroll down a little bit). 
+
+The easy fix: use the .findOneAndUpdate() function. All other arguments stay the same, including the upsert option and viola, no more added property and a more secure response object.
+
+With all this in place, and the server already running I tested the front-end and almost cried (okay, not really, but happiness was experienced) at the sound of success. 
+
+Time for the final method: DELETE.
