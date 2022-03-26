@@ -25,7 +25,6 @@ async function getLatestFlightNumber() {
     const latestLaunch = await launchesDatabase
         .findOne({})
         .sort('-flightNumber');
-    console.log(latestLaunch.flightNumber)
     return latestLaunch.flightNumber;
 }
 

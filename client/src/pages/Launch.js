@@ -9,7 +9,8 @@ const Launch = props => {
     );
   }, [props.planets]);
 
-  const today = new Date().toISOString().split("T")[0];
+  let todayPlus4Days = Date.now() + 5 * 1000 * 60 * 60 * 24;
+  const defaultDate = new Date(todayPlus4Days).toISOString().split("T")[0];
 
   return <Appear id="launch" animate show={props.entered}>
     <Paragraph>Schedule a mission launch for interstellar travel to one of the Kepler Exoplanets.</Paragraph>
@@ -21,7 +22,7 @@ const Launch = props => {
 
     <form onSubmit={props.submitLaunch} style={{display: "inline-grid", gridTemplateColumns: "auto auto", gridGap: "10px 20px"}}>
       <label htmlFor="launch-day">Launch Date</label>
-      <input type="date" id="launch-day" name="launch-day" min={today} max="2040-12-31" defaultValue={today} />
+      <input type="date" id="launch-day" name="launch-day" min={defaultDate} max="2040-12-31" defaultValue={defaultDate} />
       <label htmlFor="mission-name">Mission Name</label>
       <input type="text" id="mission-name" name="mission-name" />
       <label htmlFor="rocket-name">Rocket Type</label>
