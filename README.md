@@ -1247,3 +1247,26 @@ With that in place, the controller was made to be async and the server was start
 All tests passed. The NASA project now has a fully functioning and persistent database. 
 
 Now to update the Jest tests so they can work with the database.
+
+## Updating Jest Testing To Work With Database
+At this stage if I run the tests that were set up previously using Jest, I get several failed tests. The logs show that an error was thrown about how a timeout occurred. 
+
+The reason this is occurring has to do with the argument that is passed into the SuperTest’s request function. What is passed in is the app.js file and the problem here is that the mongoose connection is never established because that is within the server.js file, which the SuperTest never runs. 
+
+The solution is using Jest’s beforeAll() function.
+
+I wrapped all the tests previously created within a parent describe() and then at the top of this function’s body I set the beforeAll function to trigger the mongoose.connect function.
+
+I then used the afterAll() function and within the body of this I called the mongoDisconnect function()
+
+This solved all the timeout errors and the error related to the test failing to end in a timely manner.
+
+Running the tests now that our data is stored in a database reveals the importance and usefulness of using a mock database for the tests themselves. 
+
+Currently each test that is ran performs the action is the database, so each successful POST test adds a new launch, and each successful DELETE test tries to abort the launch. 
+
+I adjusted the DELETE tests and verified they passed, but then commented them out as I don’t want legitimate launches to be aborted from the database.
+
+Now all tests are working and so I shut down the tests and went into the database directly via MongoDB’s Atlas dashboard and deleted all the collections, restarted the server to initialize the database with the first default launch again. 
+
+The project is now ready to move onto the next phase.

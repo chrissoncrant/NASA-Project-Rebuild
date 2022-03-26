@@ -13,6 +13,8 @@ const launch1 = {
     upcoming: true,
     success: true,
 }
+//Initializes the database with the first launch:
+saveLaunch(launch1);
 
 async function checkValidPlanet(planetName) {
     const planetExists = await planetsDatabase.findOne({
@@ -73,7 +75,7 @@ async function abortLaunch(flightNumber) {
     });
     if(!updatedLaunch.modifiedCount) {
        return {
-           error: "Could not abort this launch."
+           error: "Launch already aborted."
        };
     } 
     return {

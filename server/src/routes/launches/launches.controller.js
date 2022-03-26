@@ -12,7 +12,6 @@ async function httpGetLaunches(req, res) {
 
 async function httpAddNewLaunch(req, res) {
     const launch = req.body;
-    console.log(launch.launchDate);
     
     if (!launch.target || !launch.mission || !launch.rocket || !launch.target) {
         return res.status(400).json({
