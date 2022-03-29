@@ -25,21 +25,23 @@ Git Version Control with Git Hub
 VSCode code editor
 Node.js
 	- Core Modules:
-		- http (server)
+		- http (server.js)
 		- file system (planets model)
 		- path (planets model, app.js)
-	- NPM packages
-		* Express
-			* Middleware:
-				- express.json()
-				- express.static()
-				- cors (app.js)
-				* morgan (app.js)
-		* nodemon
-		* csv-parse (planets model)
-		* Jest
-		* Supertest
-Postman - testing APIs
+NPM packages
+	* Express
+		* Middleware:
+			- express.json() (app.js)
+			- express.static() (app.js)
+			- cors (app.js)
+			* morgan (app.js)
+	* nodemon
+	* csv-parse (planets model)
+	* Jest
+	* Supertest
+	* mongoose (planets and launches models)
+	* Dotenv (server.js, mongo.js)
+Postman
 
 ## Project Setup
 ### Project Architecture/Diagram
@@ -1270,3 +1272,44 @@ I adjusted the DELETE tests and verified they passed, but then commented them ou
 Now all tests are working and so I shut down the tests and went into the database directly via MongoDB’s Atlas dashboard and deleted all the collections, restarted the server to initialize the database with the first default launch again. 
 
 The project is now ready to move onto the next phase.
+
+## Versioning the API
+It is important to add the ability for versioning the API. Doing so allows for future improvements to be made, while keeping the current version accessible and usable to clients.
+
+This also allows clients to upgrade their system in their own time.
+
+This is best practice as changing API endpoints can break the apps that rely on them. 
+
+### Adding the Version Route to the API
+There are several ways to accomplish this, but the way that makes the most sense is to create a router for each version. This keeps the project modular which makes the code easier to read and understand. This also allows the API to be updated more efficiently.
+
+I created a new directory within the routes directory called ‘versions.’ Within this I created a new file called ‘v1.route.js’.
+
+Within this file I created a new express router variable (v1Api), then moved the launches and planets routers from the app.js file into this file. Using the ‘v1Api’ router I mounted both the planets and launches routers and exported the ‘v1Api’ router, then mounted it within the app.js file using ‘/v1’ as the path.
+
+The v1.router.js file looks like so:
+```
+const express = require('express');
+
+
+const planetsRouter = require('./planets/planets.router');
+const launchesRouter = require('./launches/launches.router');
+
+const v1Api = express.Router();
+
+v1Api.use('/planets', planetsRouter);
+v1Api.use('/launches', launchesRouter);
+
+module.exports = v1Api;
+```
+
+### Updating the Dependents
+After changing the route I updated the front-end,  Postman and the Jest tests, so they would be able to make the calls successfully.
+
+This is a perfect example of what happens when changes are made to the API. If my front-end was some other client and these changes were made, their app would be broken. It is best to leave what works in tact and provide information to the clients on what changes were made and what steps need to be made to make systems running on the old API endpoints to work with the new endpoints.
+
+For the front-end I had to update the requests.js hook file which was making the http requests to the endpoints of the server. 
+
+To do this was easy: I had created an API_URL variable and I just added the ‘/v1’ to the front of this. After doing this I made sure to do `npm run deploy` in order to update the build files within the server directory.
+
+I then went into Postman and added the ‘/v1’ to the request URLs and did the same thing for the Jest tests. 

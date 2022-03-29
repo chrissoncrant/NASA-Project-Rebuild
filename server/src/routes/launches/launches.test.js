@@ -18,7 +18,7 @@ describe('Launches API', () => {
     describe('Test GET /launches', () => {
         test('It should respond with 200 success', async () => {
             const response = await request(app)
-                .get('/launches')
+                .get('/v1/launches')
                 .expect('Content-Type', /json/)
                 .expect(200)
         })
@@ -68,7 +68,7 @@ describe('Launches API', () => {
         
         test('Should respond with 201 Created', async ()=> {
             const response = await request(app)
-                .post('/launches')
+                .post('/v1/launches')
                 .send(completeLaunch)
                 .expect('Content-Type', /json/)
                 .expect(201);
@@ -80,7 +80,7 @@ describe('Launches API', () => {
     
         test('Missing Data: Should respond with 400', async () => {
             const response = await request(app)
-                .post('/launches')
+                .post('/v1/launches')
                 .send(incompleteLaunch)
                 .expect('Content-Type', /json/)
                 .expect(400)
@@ -91,7 +91,7 @@ describe('Launches API', () => {
     
         test('Invalid Date: Should respond with 400', async () => {
             const response = await request(app)
-                .post('/launches')
+                .post('/v1/launches')
                 .send(invalidDateLaunch)
                 .expect('Content-Type', /json/)
                 .expect(400)
@@ -102,7 +102,7 @@ describe('Launches API', () => {
     
         test('Date Too Soon: Should respond with 400', async () => {
             const response = await request(app)
-                .post('/launches')
+                .post('/v1/launches')
                 .send(badDateLaunch)
                 .expect('Content-Type', /json/)
                 .expect(400)
@@ -113,7 +113,7 @@ describe('Launches API', () => {
     
         test('Invalid Planet: Should respond with 400', async () => {
             const response = await request(app)
-                .post('/launches')    
+                .post('/v1/launches')    
                 .send(invalidPlanetLaunch)
                 .expect('Content-Type', /json/)
                 .expect(400)
@@ -126,7 +126,7 @@ describe('Launches API', () => {
     // describe('Test DELETE /launches', () => {
     //     test('Launch Doesn\'t Exist: Should respond with 404 Not Found', async () => {
     //         const response = await request(app)
-    //             .delete('/launches/999')
+    //             .delete('/v1/launches/999')
     //             .expect('Content-Type', /json/)
     //             .expect(404)
     //         expect(response.body).toStrictEqual({
@@ -136,7 +136,7 @@ describe('Launches API', () => {
 
     //     test('Launch Aborted Successfully: Should respond with 200', async () => {
     //         const response = await request(app)
-    //             .delete('/launches/105')
+    //             .delete('/v1/launches/105')
     //             .expect('Content-Type', /json/)
     //             .expect(200)
     //         expect(response.body).toStrictEqual({
@@ -146,7 +146,7 @@ describe('Launches API', () => {
 
     //     test('Launch Not Aborted: Should respond with 200', async () => {
     //         const response = await request(app)
-    //             .delete('/launches/105')
+    //             .delete('/v1/launches/105')
     //             .expect('Content-Type', /json/)
     //             .expect(200)
     //         expect(response.body).toStrictEqual({
