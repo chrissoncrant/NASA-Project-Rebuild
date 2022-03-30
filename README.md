@@ -1313,3 +1313,27 @@ For the front-end I had to update the requests.js hook file which was making the
 To do this was easy: I had created an API_URL variable and I just added the ‘/v1’ to the front of this. After doing this I made sure to do `npm run deploy` in order to update the build files within the server directory.
 
 I then went into Postman and added the ‘/v1’ to the request URLs and did the same thing for the Jest tests. 
+
+## Securing the Access Points
+When I first set up the connection with the MongoDB database within the project I did so in a way where I added the mongo.js file which contained all the sensitive information to access the database to the .gitignore file. 
+
+I recently learned of a better way to do this using the ‘dotenv’ package. 
+
+Dotenv was installed within the server directory as a project dependency. Dotenv utilizes a .env file which lives within the server directory. Within this file I specified certain “secrets” as well as configurations, such as the PORT number. 
+
+Storing “secrets” such as the MONGO_URL which contains the password to access the database is a way to keep the sensitive information secure, while being able to upload to public repositories like GitHub.
+
+Storing configurations within .env files allows us to use multiple .env files to set up multiple server environments, such as a production environment and a development environment. Currently in this project there is only one environment and so only one .env file is used. 
+
+The properties set within the .env file are utilized with the process.env.PROP_NAME syntax within the files.
+
+How these properties are referenced is by importing dotenv within the server.js file and utilizing the .config() method on this. It looks like this:
+```
+require('dotenv').config();
+```
+
+Because the server.js file is at the very top, all the other files downstream will be able to access the .env file’s secrets and configurations. 
+
+However, with that said, the Jest tests bypass the server.js file and so within the mongo.js file I added the same thing as above.
+
+I am honestly still not sure how this will work when it comes time to run the app away from the local host. That is a bridge still up ahead. Not going to cross it now.
