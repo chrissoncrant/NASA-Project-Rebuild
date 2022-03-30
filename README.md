@@ -7,16 +7,18 @@ My intention for this project is to rebuild a project from the Zero to Mastery�
 While going through the project from scratch I will be doing my best to document the journey and the thought processes in this README. 
 
 ## NASA Website Overview
-This website serves as a mission scheduler. Several potentially habitable exoplanets have been identified and this website is the hub where future launches to these planets will be scheduled. 
+This website serves as a launch scheduler and a record of upcoming and previous launches. 
+
+Several potentially habitable exoplanets have been identified. Future missions to these planets will have their launches scheduled through here. 
 
 ## The Project Mission
 I’ve been given all the files for a front-end that needs a functioning back-end.
 
 I will be using NodeJS and MongoDB to setup a functioning API that will accomplish a few jobs:
-1. Schedule Launches
-2. View Upcoming Launches
-3. Abort Launches
-4. View Previous Launches
+1. Schedule Launches (POST)
+2. Provide data for Upcoming Launches (GET)
+3. Abort Launches (DELETE)
+4. View Previous Launches (GET)
 
 ## Tools and Apps Used
 React/Create React App
@@ -41,6 +43,7 @@ NPM packages
 	* Supertest
 	* mongoose (planets and launches models)
 	* Dotenv (server.js, mongo.js)
+	* axios (launches.model.js)
 Postman
 
 ## Project Setup
@@ -1337,3 +1340,192 @@ Because the server.js file is at the very top, all the other files downstream wi
 However, with that said, the Jest tests bypass the server.js file and so within the mongo.js file I added the same thing as above.
 
 I am honestly still not sure how this will work when it comes time to run the app away from the local host. That is a bridge still up ahead. Not going to cross it now.
+
+## Interacting With SpaceX API 
+SpaceX API is a database of all the launches performed by SpaceX. The game plan was to use this information to populate the front-end with the relevant information. 
+
+[GitHub - r-spacex/SpaceX-API: Open Source REST API for SpaceX launch, rocket, core, capsule, starlink, launchpad, and landing pad data.](https://github.com/r-spacex/SpaceX-API)
+
+To get familiar with the SpaceX API I utilized the “Run in Postman,” which allowed me to import the entire API into Postman. This helped tremendously in order to better test how to query this API for what is needed.
+
+Once the API was open in Postman, some time was taken to just explore the API further. It was found that the endpoint most relevant to the project is the launches endpoint. 
+
+While exploring I noticed that there were certain properties, like “rocket”, that was using a reference to another collection. I found this interesting as it was a kind of amalgamation of the document and relational models. 
+
+The SpaceX API utilizes both MongoDB and Mongoose, which I discovered not only from the data itself, but from the documentation. 
+
+Reading the docs helped me find out what was going on with those properties whose values were references to other collections. I soon found the document section on how to query the API.
+
+### RESTful Aside
+While reading about the querying I discovered an endpoint which didn’t quite follow the RESTful standards. This was the query endpoint. This endpoint was a POST request in order to GET data. I found out that this is a pattern that I would most likely run into in the future.
+
+I actually liked this as it highlighted the flexibility that is needed in API design. The overall framework of the API is RESTful, but within this framework the deviation actually adds much needed functionality. 
+
+First, by using this it allows the API to be more performant as the responses to the requests to each individual endpoint don’t have to contain all of the information. Secondly, it allows one to access only the relevant information that is needed. 
+
+Another way in which this API endpoint’s performance was increased was through its use of the ‘mongoose-paginate-v2’ library. By breaking up the requests into pages by default, the API becomes much more performant as only portions of the information is sent per request unless otherwise specified. 
+
+All of this was a good experiential lesson.
+
+### Preparation for Mapping to My Database
+Now that I had a decent understanding of how the SpaceX API worked, I began making a plan for how I would go about getting the data I needed from the API to populate my front-end with the information. 
+
+This was just a matter of going through the test launch object within the launches.model.js file and making some notes about how each of the properties would be accessed within the SpaceX API.
+
+Several of these properties were straight forward as the launches API had them directly at my disposal without having to go through a referenced document. 
+
+The tricky properties in my API were “rocket”, “target”, and “customers.”
+
+For the “rocket” and “customers” properties I would have to access a referenced document. I used Postman to get the request body correct. This involved utilizing Mongoose’s `populate` options along with the `select` option in order to just get the relevant data. 
+
+This was good experience in how to query a database. It also gave me a greater understanding and appreciation for Postman as a tool. 
+
+For the “target” property, there wasn’t a relevant property within the SpaceX API as none of the SpaceX missions were to any of the exoplanets. All that was needed here was to remove “required” from this property in the launches schema.
+
+With the proper request body set up and knowing how each property in the SpaceX API would map to my database, it was time to prepare the data access function which would do this.
+
+### Data Access Function to Map SpaceX Launches to Database
+The first thing was to find a package to use in order to make the request within the server to the SpaceX API. I decided to go with the well-known and loved Axios package. This was installed within the server package file as a project dependency.
+
+I declared an async function called loadLaunchData() and I set this up to pre-load upon server start within the startServer() function in the server.js file.
+
+The first thing to do within the body was to await an axios.post() call. The argument of this function was the query/options object created in Postman. I stored the response in a variable called response and to verify it was working I console.logged the response. To make the console.log more readable I used the limit option within the request body as well. It looked like so:
+```
+async function loadLaunchData() {
+    const response = await axios.post('https://api.spacexdata.com/v4/launches/query', {
+        query: {},
+        options: {
+            select: [
+                "flight_number",
+                "date_local",
+                "name",
+                "upcoming",
+                "success"
+            ],
+            populate: [
+                {
+                    path: "rocket",
+                    select: "name"
+                },
+                {
+                    path: "payloads",
+                    select: "customers"
+                }
+            ],
+            limit: 3
+        }
+    })
+    console.log(response.data.docs);
+    console.log('SpaceX Data loaded...');
+}
+```
+
+It logged exactly what I needed. Now I just needed to store these properties into an object that I could pass into the saveLaunches function to add it to the database. 
+
+I used a for loop to iterate through the received array of launches, then mapped each launch to an object with the property names that worked with my database. This was essentially a translation step.
+
+The customers property required an extra step. Depending on the SpaceX launch there may be several customer groups and each of these groups would be in an array. This meant that without further processing I could end up with an array of arrays, which I did not want. 
+
+The solution to this was to perform a .flatMap operation and the result of this would be the value for the customer property.
+
+With all this in place I logged the resulting object to verify it was working.
+
+All that was left was to remove the limit and call the saveLaunches function on each of the launch objects. This would populate the database with the SpaceX launches.
+
+### API Efficiency
+After running the above and starting the server, I found out that I was only getting 10 launches. Looking into the SpaceX API I discovered why, and the answer is pagination. The SpaceX API sends its data in pages. This allows for less costly API calls both for the client and the server. This is friendly. 
+
+However, I needed all the launches, so I simply had to add the “pagination: false” option to my request body and that solved it.
+
+But before making the call I decided to be friendly myself and added a check so that my API wouldn’t make the call for all the launches every time it restarted. 
+
+### Check SpaceX API for Updates
+This is a bit tricky as I don’t have control on how SpaceX updates their launches. But I am going to assume that when it is updated that will mean there will be more flights present.
+
+The check for whether or not to update my database is to compare the databases latest launch with the latest launch in the SpaceX database. 
+
+After writing the code I took some time to clean it up, breaking up certain tasks into their own functions.
+
+First I created a populateData function which is where the launch translation I recently set up occurs. It looks like so:
+```
+async function populateLaunchData() {
+    const body = {
+        query: {},
+        options: {
+            pagination: false,
+            select: [
+                "flight_number",
+                "date_local",
+                "name",
+                "upcoming",
+                "success"
+            ],
+            populate: [
+                {
+                    path: "rocket",
+                    select: "name"
+                },
+                {
+                    path: "payloads",
+                    select: "customers"
+                }
+            ]
+        }
+    };
+    const response = await axiosRequest(body);
+    const launchDocs = response.data.docs;
+    for (const launchDoc of launchDocs) {
+        const customers = launchDoc.payloads.flatMap(payload => payload.customers);
+        const launch = {
+            flightNumber: launchDoc.flight_number,
+            launchDate: launchDoc.date_local,
+            mission: launchDoc.name,
+            rocket: launchDoc.rocket.name,
+            customers,
+            upcoming: launchDoc.upcoming,
+            success: launchDoc.success
+        }
+        await saveLaunch(launch);
+    }
+}
+```
+
+This function is called only if the launch data needs to be updated. The call of this function occurs within the loadLaunchData which looks like this:
+```
+async function loadLaunchData() {
+    const spaceXDatabaseUpdated = await checkForSpaceXUpdate();
+    if(!spaceXDatabaseUpdated) {
+        console.log('SpaceX Database up to date.')
+    } else {
+        await populateLaunchData();
+    }
+    console.log('SpaceX Data loaded...');
+}
+```
+
+There’s a couple new things in this function. Specifically there is the checkForSpaceXUpdate function whose result is what is used to determine whether or not we run the populateLaunchData function.
+
+That function looks like this:
+```
+async function checkForSpaceXUpdate() {
+    const latestLaunchInDatabase = await getLatestFlightNumber();
+    const axiosBody = {
+        query: {
+            flight_number: {
+                $gt: latestLaunchInDatabase
+            }
+        },
+        options: {}
+    };
+    const response = await axiosRequest(axiosBody);
+    return response.data.docs.length;;
+}
+```
+
+What it does is it first makes a call to this API’s database using the getLatestFlightNumber function, storing the result in a variable. 
+
+It then makes a call on the SpaceX database. For the sake of keeping the code as DRY as possible I decided to create a new function specifically for making the call to the SpaceX database. I called this function axiosRequest and set a parameter to be the body of the request. 
+
+For the checkForSpaceXUpdate function the body was a simple query whose result would be all the documents above the latest flight number in this project’s launches database. The length of the array is returned. If the value is zero then it is assumed our database is up to date. 
+
+As I describe this I realize that there are going to be a certain number of missions that will be in progress and whose status may change, meaning there will be discrepancies between the SpaceX launches and this project’s, however I do feel this is a reasonable, though imperfect solution to the problem.
