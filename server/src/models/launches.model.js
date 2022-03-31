@@ -1,5 +1,4 @@
 const launchesDatabase = require('./launches.mongo');
-const { findOne } = require('./planets.mongo');
 const planetsDatabase = require('./planets.mongo');
 const axios = require('axios');
 
@@ -91,7 +90,6 @@ async function loadLaunchData() {
     console.log('SpaceX Data loaded...');
 }
 
-
 async function checkValidPlanet(planetName) {
     const planetExists = await planetsDatabase.findOne({
         keplerName: planetName
@@ -131,10 +129,12 @@ async function addNewLaunch(launch) {
     return completedLaunch;
 }
 
-async function getAllLaunches() {
+async function getAllLaunches(limit, skip) {
     return await launchesDatabase
         .find({}, '-_id -__v')
-        .sort('flightNumber');
+        .sort('flightNumber')
+        .limit(limit)
+        .skip(skip)
 }
 
 async function launchExists(flightNumber) {

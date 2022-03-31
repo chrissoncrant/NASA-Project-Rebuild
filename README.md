@@ -1529,3 +1529,106 @@ It then makes a call on the SpaceX database. For the sake of keeping the code as
 For the checkForSpaceXUpdate function the body was a simple query whose result would be all the documents above the latest flight number in this project’s launches database. The length of the array is returned. If the value is zero then it is assumed our database is up to date. 
 
 As I describe this I realize that there are going to be a certain number of missions that will be in progress and whose status may change, meaning there will be discrepancies between the SpaceX launches and this project’s, however I do feel this is a reasonable, though imperfect solution to the problem.
+
+The next step was to add the “pagination: false” option to the populateLaunches request body to the SpaceX API and start the server.
+
+I then verified results in Postman first.
+
+I noticed in Postman that the launches were showing up in a non-sorted way, so I added a .sort(‘flightNumber’) link to the saveLaunches function. This gave me a sorted list in Postman.
+
+I then checked the front end. Viola! The front-end is full of SpaceX launches both past and upcoming. Very cool!
+
+## Adding Pagination to Launches API
+Currently, no matter what, this API will return all the launches. I figured it would be nice to also have a pagination feature. So one was set up using url query parameters. 
+
+With pagination there are 2 query parameters that would be needed: limit and page number.
+
+The limit sets the limit on how many documents to return. The page number tells which page number to display. The total number of pages would depend on the limit and the total number of documents in the collection. 
+
+Using Postman I added these query parameters to the url for the GET /launches request. `http://localhost:8000/v1/launches?limit=3&page=1`
+
+I knew that within the httpGetAllLaunches controller function I could see these parameters and the values set by logging the `req.query` property. Doing so showed me an object that looked like this:
+```
+{ limit: '3', page: '1' }
+```
+
+The next phase was a matter of investigating the query options for mongoose and MongoDB.
+
+I found the `.limit()` mongoose function which I would be able to chain onto the `.find()` function within the getAllLauches data access function. The argument of .limit() sets the limit on the number of documents returned.
+
+As for pages, this required some trickery. There is no in-built page function within mongoose or MongoDB, but mongoose does have a `.skip()` function. Using a simple mathematical equation this could be used to act as a pagifier (that’s right, I just made up a word). 
+
+Now it was a matter of determining how to best set this up.
+
+### Setting Up Query File
+I thought that it would be nice to have this pagination process/function be in a separate module so it could be easily used elsewhere if need be. I also thought that perhaps there would be more queries that would be needed. With this in mind, within the services directory, where the mongo.js file lives I added a query.js file.
+
+Within the query.js file I created a function that would take in the query parameters and convert them into values that would be usable by the data access function called within the controller (getAllLaunches).
+
+This function’s purpose is to return an object with 2 properties: limit and skip. The values of these properties would need to be usable by the data access function.
+
+Within the function I set up two variables, ‘limit’ and ‘page.’ The argument the function takes in would be a query object (req.query) which it gets from the controller. The ‘limit’ variable would be assigned the limit value of the query object argument and the ‘page’ variable, the page value. 
+
+Now it was time to think about data type. The data type passed in by the query object would be strings, but I needed numbers. I could have just wrapped these values in Number() method, but I figured I may as well take it a step further and ensure that negative values don’t break anything, so I used Math.abs() instead. Both the limit and page values were wrapped by this Math object method. 
+
+With that in place I created the ‘skip’ variable. The value assigned to this variable was where a little bit of fun math came into play. The first page would require no skipping. Each page after would require skipping by the limit multiplied by the page number - 1. That told me what the equation needed to be to get a working ‘skip’ value. 
+
+With all of that in place I returned an object with the limit and skip properties.
+
+I realized that I would then need to create default values for these as this function would be called for every GET request to the launches endpoint. But what was the default behavior that I wanted?
+
+I figured if no query parameters were entered the easiest thing at this point would be to return all the document. The `.limit()` function would do this with a value of 0. A good default page is 1. 
+
+So I created two variables for the default values. I implemented these using short-circuiting syntax. The final function looks like this:
+```
+const DEFAULT_PAGE_LIMIT = 0;
+const DEFAULT_PAGE_NUMBER = 1;
+
+function getPagination(query) {
+    const limit = Math.abs(query.limit) || DEFAULT_PAGE_LIMIT;
+    const page = Math.abs(query.page) || DEFAULT_PAGE_NUMBER;
+    const skip = (page - 1) * limit;
+    return { limit, skip }
+}
+module.exports = getPagination;
+```
+
+### Controller and Model Setup
+Within the controller I imported the query function created. I then used object destructuring syntax to grab the limit and skip values, passing in the req.query object as the argument into the imported query function. 
+
+These values would be passed into the data access function. Within the launches.model.js file and within the body of the getAllLaunches function I chained on the `.limit()` and `.skip()` functions. I added the limit and skip parameters to the function and set these as the values of the `.limit()` and `.skip()` functions. With that set, it was back to the controller for a little clean up.
+
+With everything set up, I ran a test in Postman, confirming everything worked as expected, then checked out the front-end. 
+
+The final controller function looks like this:
+```
+async function httpGetLaunches(req, res) {
+    const { limit, skip } = getPagination(req.query);
+    const launches = await getAllLaunches(limit, skip);
+    return res.status(200).json(launches)
+}
+```
+
+The final data access function looks like this:
+```
+async function getAllLaunches(limit, skip) {
+    return await launchesDatabase
+        .find({}, '-_id -__v')
+        .sort('flightNumber')
+        .limit(limit)
+        .skip(skip)
+}
+```
+
+### Implementing the Pagination
+So the functionality on the back-end was there, but in order to implement it on the front-end would require some more work. 
+
+Putting in the query parameters directly in the front-end url doesn’t do anything because the endpoint for those only serves the static files. Where the query parameters would need to be entered would be within the requests.js hook file.
+
+To fully implement this I need to create:
+- A dropdown for limit values, say 10, 20, 50 or all
+- A dropdown for page selection
+- Buttons to go back and forward in page number. 
+
+At this stage in the Node course we are not doing this and due to my current unfamiliarity with React and my current focus, which is to continue with the Node course, this will have to be done in the future. With that said I see the path ahead to do this. 
+ 
