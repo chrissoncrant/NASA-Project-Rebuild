@@ -4,7 +4,7 @@
   "description": "Rebuilding NASA project from ZTM course",
   "main": "index.js",
   "scripts": {
-    "test": "npm run test-watch --prefix server",
+    "test": "npm test --prefix server && npm test --prefix client",
     "install-server": "npm install --prefix server",
     "install-client": "npm install --prefix client",
     "install": "npm run install-server && npm run install-client",
